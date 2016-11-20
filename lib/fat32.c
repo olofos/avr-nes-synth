@@ -7,6 +7,8 @@
 
 #include "log.h"
 
+#define FAT32_DEBUG 0
+
 #define CLUSTER_CACHE_SIZE 8
 #define BYTES_PER_SECTOR   512
 
@@ -52,8 +54,9 @@ static uint32_t fat32_read_partition_table()
         uint8_t partition_type = sd_read_uint8();
         sd_skip_bytes(3); // CHS address of last absolute sector 
         partition_start = sd_read_uint32();
-        uint32_t length_sectors = sd_read_uint32();
+        uint32_t length_sectors __attribute__((__unused__)) = sd_read_uint32();
 
+#if FAT32_DEBUG
         log_puts_P(PSTR("Partition "));
         log_put_uint8(i);
         log_puts_P(PSTR(":\n Type:   0x"));
@@ -63,6 +66,7 @@ static uint32_t fat32_read_partition_table()
         log_puts_P(PSTR("\n Length: 0x"));
         log_put_uint32_hex(length_sectors);
         log_puts_P(PSTR("\n\n"));
+#endif
 
         if(partition_type == 0x0B || partition_type == 0x1B) // FAT32 with CHS addressing
         {
@@ -80,9 +84,11 @@ static uint32_t fat32_read_partition_table()
         log_puts_P(PSTR("No FAT32 partition found\n"));
         return 0;
     } else {
+#if FAT32_DEBUG
         log_puts_P(PSTR("FAT32 filesystem found from partition "));
         log_put_uint8(i);
         log_puts_P(PSTR("\n"));
+#endif
     }
 
     uint16_t ending = sd_read_uint16();
@@ -119,7 +125,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
 
     sd_skip_bytes(0x1CE);
 
-    uint16_t boot_sector_signature = sd_read_uint16();
+    uint16_t boot_sector_signature __attribute__((__unused__)) = sd_read_uint16();
 
     sd_end_sector();
 
@@ -133,6 +139,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
         log_puts_P(PSTR("\n"));
     }
 
+#if FAT32_DEBUG    
     log_puts_P(PSTR("sector_size: "));
     log_put_uint16(sector_size);
     
@@ -163,7 +170,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
     log_put_uint32_hex(fat32_data.data_start);
 
     log_puts_P(PSTR("\n\n"));
-
+#endif
 }
 
 static inline uint32_t fat32_get_sector(const uint32_t cluster, uint16_t sector)
@@ -189,7 +196,6 @@ void fat32_open_root_dir()
 void fat32_init()
 {
     uint32_t partition_start = fat32_read_partition_table();
-    log_puts("\n");
     fat32_read_boot_sector(partition_start);
 }
 
@@ -200,20 +206,22 @@ static uint32_t fat32_get_next_cluster_from_fat(const uint32_t cluster)
     sd_skip_bytes((address) & 0x1ff);
     uint32_t next_cluster = sd_read_uint32();
     sd_end_sector();
-    
-//    log_putc('\n');
-//    log_puts_P(PSTR("Current cluster: 0x"));
-//    log_put_uint32_hex(cluster);
-//    log_puts_P(PSTR("\nFinding next cluster at: 0x"));
-//    log_put_uint32_hex(address);
-//    log_puts_P(PSTR(" (sector "));
-//    log_put_uint32_hex(address / BYTES_PER_SECTOR);
-//    log_puts_P(PSTR(", skip 0x"));
-//    log_put_uint16_hex(address & 0x1ff);
-//    log_puts_P(PSTR(")\n"));
-//    log_puts_P(PSTR("Next cluster: 0x"));
-//    log_put_uint32_hex(next_cluster);
-//    log_putc('\n');
+
+#if FAT32_DEBUG
+    log_putc('\n');
+    log_puts_P(PSTR("Current cluster: 0x"));
+    log_put_uint32_hex(cluster);
+    log_puts_P(PSTR("\nFinding next cluster at: 0x"));
+    log_put_uint32_hex(address);
+    log_puts_P(PSTR(" (sector "));
+    log_put_uint32_hex(address / BYTES_PER_SECTOR);
+    log_puts_P(PSTR(", skip 0x"));
+    log_put_uint16_hex(address & 0x1ff);
+    log_puts_P(PSTR(")\n"));
+    log_puts_P(PSTR("Next cluster: 0x"));
+    log_put_uint32_hex(next_cluster);
+    log_putc('\n');
+#endif
 
     return next_cluster;
 }
@@ -274,27 +282,34 @@ static void fat32_create_cluster_cache(uint32_t cluster)
 {
     fat32_data.cluster_cache[0] = fat32_get_next_cluster_from_fat(cluster);
 
+#if FAT32_DEBUG
     log_puts("Creating cluster cache:\n");
 
     log_puts(" 0x");
     log_put_uint32_hex(cluster);
     log_puts("\n");
+#endif
 
     for(uint8_t i = 0; i < CLUSTER_CACHE_SIZE; i++)
     {
         fat32_data.cluster_cache[i] = fat32_get_next_cluster_from_fat(cluster);
         cluster = fat32_data.cluster_cache[i];
 
+#if FAT32_DEBUG
         log_puts(" 0x");
         log_put_uint32_hex(cluster);
         log_puts("\n");
+#endif
 
         if((cluster & END_CLUSTER_MASK) == END_CLUSTER_MASK)
         {
             break;
         }
     }
+
+#if FAT32_DEBUG
     log_puts("Done.\n");
+#endif
 }
 
 static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *file_data)
@@ -330,11 +345,13 @@ static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *fi
 
         if(match)
         {
+#if FAT32_DEBUG
             log_puts_P(PSTR("Filename "));
             log_puts(filename);
             log_puts_P(PSTR(" matches file "));
             log_put_uint16(i);
             log_puts_P(PSTR("\n"));
+#endif
             break;
         }
 
@@ -363,9 +380,11 @@ uint8_t fat32_open_file(const char *filename)
         return 0;
     }
 
+#if FAT32_DEBUG
     log_puts_P(PSTR("File cluster: 0x"));
     log_put_uint32_hex(fat32_file.cluster);
     log_putc('\n');
+#endif
 
     fat32_create_cluster_cache(fat32_file.cluster);
     
@@ -391,6 +410,7 @@ void fat32_seek(uint16_t len)
     uint16_t seek_sectors = (len - seek_clusters * fat32_data.sectors_per_cluster) / BYTES_PER_SECTOR;
     uint16_t seek_bytes = len % BYTES_PER_SECTOR;
 
+#if FAT32_DEBUG
     log_puts(  "Seek clusters: ");
     log_put_uint16(seek_clusters);
 
@@ -401,6 +421,7 @@ void fat32_seek(uint16_t len)
     log_put_uint16(seek_bytes);
 
     log_puts("\n");
+#endif
 
     sd_end_sector();
 
@@ -411,8 +432,6 @@ void fat32_seek(uint16_t len)
     {
         fat32_data.current_cluster = fat32_next_cluster();
     }
-
-//    fat32_data.current_cluster = cluster;
 
     fat32_data.sector_in_cluster = seek_sectors;
 

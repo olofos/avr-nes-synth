@@ -138,8 +138,6 @@ void sd_debug_print_16_bytes()
 
 void sd_init()
 {
-    log_puts_P(PSTR("\n\nBegin SD card init\n\n"));
-
     set_high(PIN_SD_CS);
 
     // Idle for 80 clock cycles
