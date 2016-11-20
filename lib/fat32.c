@@ -280,20 +280,16 @@ static void fat32_create_cluster_cache(uint32_t cluster)
     log_put_uint32_hex(cluster);
     log_puts("\n");
 
-    log_puts(" 0x");
-    log_put_uint32_hex(fat32_data.cluster_cache[0]);
-    log_puts("\n");
-        
-
-    for(uint8_t i = 1; i < CLUSTER_CACHE_SIZE; i++)
+    for(uint8_t i = 0; i < CLUSTER_CACHE_SIZE; i++)
     {
-        fat32_data.cluster_cache[i] = fat32_get_next_cluster_from_fat(fat32_data.cluster_cache[i-1]);
+        fat32_data.cluster_cache[i] = fat32_get_next_cluster_from_fat(cluster);
+        cluster = fat32_data.cluster_cache[i];
 
         log_puts(" 0x");
-        log_put_uint32_hex(fat32_data.cluster_cache[i]);
+        log_put_uint32_hex(cluster);
         log_puts("\n");
 
-        if((fat32_data.cluster_cache[i] & END_CLUSTER_MASK) == END_CLUSTER_MASK)
+        if((cluster & END_CLUSTER_MASK) == END_CLUSTER_MASK)
         {
             break;
         }
