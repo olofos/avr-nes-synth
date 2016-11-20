@@ -1,0 +1,22 @@
+|------+--------------------------+--------------------------+-----------------------------|
+| Size | Square                   | Noise                    | Tringle                     |
+|------+--------------------------+--------------------------+-----------------------------|
+|    2 | period                   | period                   | period                      |
+|    1 | enabled                  | enabled                  | enabled                     |
+|    1 | length_counter_halt_flag | length_counter_halt_flag | length_counter_halt_flag    |
+|    1 | length_counter*          | length_counter*          | length_counter*             |
+|    1 | volume*                  | volume*                  | linear_counter*             |
+|    1 | env_reload_flag          | env_reload_flag          | linear_counter_reload_flag  |
+|    1 | env_reload_value         | env_reload_value         | linear_counter_reload_value |
+|    1 | env_const_flag           | env_const_flag           |                             |
+|    1 | env_divider              | env_divider              |                             |
+|    1 | env_volume               | env_volume               |                             |
+|    1 | duty_cycle*              | shift_mode*              |                             |
+|    2 | sweep_period             | shift_register*          |                             |
+|    1 | sweep_divider            |                          |                             |
+|    1 | sweep_counter            |                          |                             |
+|    1 | sweep_neg_flag           |                          |                             |
+|    1 | sweep_reload_flag        |                          |                             |
+|    1 | sweep_enabled            |                          |                             |
+|------+--------------------------+--------------------------+-----------------------------|
+
