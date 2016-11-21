@@ -86,7 +86,7 @@ struct ssd1306_frame_t
     uint8_t offset;
 };
 
-const struct ssd1306_frame_t full_frame = { .col_start = 0x00, .col_end = 0x7F , .row_start = 0x00, .row_end = 0x07, .offset = 0x00 };
+static const struct ssd1306_frame_t full_frame = { .col_start = 0x00, .col_end = 0x7F , .row_start = 0x00, .row_end = 0x07, .offset = 0x00 };
 
 void ssd1306_init()
 {
@@ -203,6 +203,34 @@ static inline void print_spaces(uint8_t n)
     }
 }
 
+void ssd1306_puts(const char* str, uint8_t x, uint8_t y)
+{
+    const struct ssd1306_frame_t frame = { .col_start = x, .col_end = 0x7F , .row_start = y, .row_end = y, .offset = 0 };
+    ssd1306_setup_frame(frame);
+
+    i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
+    i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
+
+    char c;
+    while((c = *str++))
+    {
+        print_char(c);
+    }
+
+    i2c_stop();
+}
+
+void ssd1306_putc(const char c, uint8_t x, uint8_t y)
+{
+    const struct ssd1306_frame_t frame = { .col_start = x, .col_end = 0x7F , .row_start = y, .row_end = y, .offset = 0 };
+    ssd1306_setup_frame(frame);
+
+    i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
+    i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
+    print_char(c);
+    i2c_stop();
+}
+
 
 // Console
 
@@ -293,12 +321,10 @@ void ssd1306_console_puts(const char* str)
 	    str++;
 	    console_current_row++;
 	    console_current_col=0;
-	} else {
-	    if(console_current_col >= CONSOLE_LINE_LENGTH)
-	    {
-		console_current_row++;
-		console_current_col = 0;
-	    }
+	} else if(console_current_col >= CONSOLE_LINE_LENGTH)
+        {
+            console_current_row++;
+            console_current_col = 0;
 	}
     }    
 }

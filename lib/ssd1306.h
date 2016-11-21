@@ -15,4 +15,8 @@ void ssd1306_bitmap_P(const uint8_t *buf, uint8_t cols, uint8_t rows, uint8_t x,
 
 void ssd1306_bitmap_begin();
 void ssd1306_bitmap_end();
+
+void ssd1306_puts(const char* str, uint8_t x, uint8_t y);
+void ssd1306_putc(const char c, uint8_t x, uint8_t y);
+
 #endif
