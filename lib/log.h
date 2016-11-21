@@ -31,4 +31,6 @@ void log_put_int16(int8_t val);
 
 void log_put_ascii(uint8_t val);
 
+inline void log_nl() { log_putc('\n'); };
+
 #endif
