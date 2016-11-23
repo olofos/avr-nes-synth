@@ -4,7 +4,7 @@ PROGRAMMER?=usbtiny
 
 TARGET=avr-nessynth-controller
 
-SOURCES=main.c i2c-master.c uart.c ssd1306.c logo-paw-64x64.c glcdfont.c log.c sd.c fat32.c
+SOURCES=main.c i2c-master.c uart.c ssd1306.c logo-paw-64x64.c glcdfont.c log.c sd.c fat32.c io-bridge.c menu.c
 
 LIBDIR=../lib/
 include $(LIBDIR)/Makefile.inc

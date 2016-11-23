@@ -5,7 +5,7 @@ void fat32_init();
 
 void fat32_open_root_dir();
 
-uint8_t fat32_open_file(const char *filename);
+uint8_t fat32_open_file(const char *filename, const char *ext);
 void fat32_close_file();
 
 uint16_t fat32_read(void *raw_buf, uint16_t len);

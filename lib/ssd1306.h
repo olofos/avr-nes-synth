@@ -19,4 +19,10 @@ void ssd1306_bitmap_end();
 void ssd1306_puts(const char* str, uint8_t x, uint8_t y);
 void ssd1306_putc(const char c, uint8_t x, uint8_t y);
 
+
+void ssd1306_text_start(uint8_t x, uint8_t y);
+void ssd1306_text_end();
+void ssd1306_text_putc(char c);
+
+
 #endif

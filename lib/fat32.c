@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 
 #include "config.h"
@@ -236,6 +237,8 @@ static uint32_t fat32_next_cluster()
     }
 }
 
+
+// TODO: optimise by reading more than one byte at a time
 uint16_t fat32_read(void *sd_buf, uint16_t len)
 {
     uint8_t *buf = (uint8_t*) sd_buf;
@@ -312,9 +315,10 @@ static void fat32_create_cluster_cache(uint32_t cluster)
 #endif
 }
 
-static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *file_data)
+static uint8_t fat32_get_file_data(const char *filename, const char *ext, struct fat32_file_t *file_data)
 {
-    char dir_filename[11];
+    char dir_filename[8];
+    char dir_ext[3];
     uint8_t attrib;
     uint16_t cluster_hi;
     uint16_t cluster_lo;
@@ -324,7 +328,8 @@ static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *fi
     uint8_t match;
 
     do {
-        fat32_read(dir_filename, 11);
+        fat32_read(dir_filename, 8);
+        fat32_read(dir_ext, 3);
         fat32_read(&attrib, 1);
         fat32_read(NULL, 8);
         fat32_read(&cluster_hi, 2);
@@ -332,15 +337,17 @@ static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *fi
         fat32_read(&cluster_lo, 2);
         fat32_read(&file_size, 4);
 
-        match = 1;
+        match = 0;
 
-        for(uint8_t j = 0; j < 11; j++)
+        for(uint8_t j = 0; j < 8; j++)
         {
-            if(dir_filename[j] != filename[j])
-            {
-                match = 0;
-                break;
-            }
+            if(dir_filename[j] == ' ')
+                dir_filename[j] = 0;
+        }
+
+        if(!strncmp(filename, dir_filename, 8) && !strncmp(ext, dir_ext, 3))
+        {
+            match = 1;
         }
 
         if(match)
@@ -373,9 +380,9 @@ static uint8_t fat32_get_file_data(const char *filename, struct fat32_file_t *fi
 
 
 // Assumes that we are in the beginning of a directory cluster
-uint8_t fat32_open_file(const char *filename)
+uint8_t fat32_open_file(const char *filename, const char *ext)
 {
-    if(!fat32_get_file_data(filename, &fat32_file))
+    if(!fat32_get_file_data(filename, ext, &fat32_file))
     {
         return 0;
     }

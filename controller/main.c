@@ -7,7 +7,7 @@
  *
  * Playback is performed using two timers: 
  *
- * - Timer 1 fires at 240 Hz
+ * - Timer 0 fires at 240 Hz
  *   and outputs the frame clock. At every four frames it starts timer 2
  *   to output data
  *
@@ -32,15 +32,9 @@
 #include "sd.h"
 #include "fat32.h"
 #include "log.h"
-
+#include "io-bridge.h"
+#include "menu.h"
 #include "cbuf.h"
-
-#define BUTTON_PRESS_RIGHT 0x80
-#define BUTTON_PRESS_UP    0x40
-#define BUTTON_PRESS_DOWN  0x20
-#define BUTTON_PRESS_LEFT  0x10
-
-#define BUTTON_PRESS_MASK  0xF0
 
 
 #define reg_address_LEN 128
@@ -61,6 +55,8 @@ struct
 } reg_data;
 
 ////////////////////////////////////////////////////////////////////////////////
+
+uint16_t global_timer;
 
 static inline void channel_reset_hold();
 static inline void channel_reset_release();
@@ -104,33 +100,6 @@ void song_read_data();
 #define SONG_PREV 0x04
 
 ////////////////////////////////////////////////////////////////////////////////
-
-struct menu_item_t
-{
-    char string[21];
-};
-
-struct menu_item_t menu[8];
-
-static int8_t menu_current_option;
-static uint8_t menu_top;
-static uint8_t menu_num_items;
-
-#define MENU_HEIGHT 8
-#define MENU_REDRAW 0x01
-#define MENU_PLAY   0x02
-
-void menu_init();
-void menu_loop();
-
-void menu_redraw();
-uint8_t menu_handle_input();
-void menu_reload(uint8_t start);
-
-void menu_read_info(uint8_t start, char *str, uint8_t *len);
-
-////////////////////////////////////////////////////////////////////////////////
-
 
 static inline void channel_reset_hold()
 {
@@ -219,7 +188,7 @@ void bitmap(const char* filename)
     log_puts("\"\n");
     
     fat32_open_root_dir();
-    fat32_open_file(filename);
+    fat32_open_file(filename, "BIT");
 
     uint8_t buf[128];
 
@@ -277,6 +246,11 @@ void timers_init()
     TIMSK0 |= _BV(OCIE0A); // Set interrupt on compare match
     OCR0A = 232; // 14318180 Hz / 256 / (232 + 1) = 240 Hz
 
+    TCCR1A = 0;
+    TCCR1B = _BV(WGM12) | _BV(CS12) | _BV(CS10); // CTC mode, prescaler 1024
+    TIMSK1 |= _BV(OCIE1A);
+    OCR1A = 1747; // 8 Hz timer
+    
     TCCR2A = _BV(WGM21); // CTC mode
     TCCR2B = 0;
     TIMSK2 |= _BV(OCIE2A); // Set interrupt on compare match
@@ -287,7 +261,7 @@ void song_open(const char* filename)
 {
     fat32_open_root_dir();
     
-    if(fat32_open_file(filename))
+    if(fat32_open_file(filename, "BIN"))
     {
         song_done = 0;
 
@@ -382,6 +356,8 @@ void reset_channels()
 
 uint8_t song_play(const char* filename)
 {
+    uint16_t start_time = global_timer;
+
     song_open(filename);
     song_read_data();
     set_low(PIN_LED);
@@ -391,6 +367,11 @@ uint8_t song_play(const char* filename)
     while(!(ret = song_handle_inputs()) && !song_done)
     {
         song_read_data();
+
+        if(global_timer - start_time > 8 * 60 * 3)
+        {
+            song_done = 1  ;
+        }
     }
 
     song_stop();
@@ -436,19 +417,47 @@ uint8_t song_handle_inputs()
     return action;
 }
 
-void category_play(const char catname[6], uint8_t len)
-{
-    char filename[12];
-    for(uint8_t i = 0; i < 6; i++)
-    {
-        filename[i] = catname[i];
-    }
 
-    filename[8] = 'B';
-    filename[9] = 'I';
-    filename[10] = 'N';
-    filename[11] = 0;
+void category_read_info(uint8_t choice, char *catname, uint8_t *len)
+{
+    fat32_open_root_dir();
+    fat32_open_file("CAT", "TXT");
+
+    fat32_seek(0);
+
+    fat32_read(0, 3); // Skip num cat + new line
+    fat32_read(0, 30 * choice);
+
+    ssd1306_text_start(0,1);
     
+    char c;
+    for(uint8_t i = 0; i < 20; i++)
+    {
+        fat32_read(&c, 1);
+        ssd1306_text_putc(c);
+    }
+    ssd1306_text_end();
+
+    fat32_read(catname, 6);
+
+    char numstr[3];
+    fat32_read(numstr, 3);
+
+    *len = (numstr[1]-'0')*10 + (numstr[2]-'0');
+
+    fat32_close_file();
+}
+
+
+void category_play(uint8_t choice)
+{
+    ssd1306_clear();
+    ssd1306_puts("Playing:",0,0);
+
+    char filename[8];
+    uint8_t len;
+
+    category_read_info(choice, filename, &len);
 
     uint8_t done = 0;
     int8_t num = 1;
@@ -511,198 +520,6 @@ void category_play(const char catname[6], uint8_t len)
     }
 }
 
-
-uint8_t get_input()
-{
-    uint8_t in = 0;
-    if(is_high(PIN_IO_INT))
-    {
-
-        i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
-        in = i2c_read_nak();
-        i2c_stop();
-    }
-    return in;
-}
-
-void menu_init()
-{
-    fat32_open_root_dir();
-    fat32_open_file("CAT     TXT");
-
-    char numstr[2];
-    fat32_read(numstr, 2);
-    fat32_read(0, 1); // Skip new line
-
-    menu_num_items = 10*(numstr[0] - '0') + (numstr[1] - '0');
-
-    log_puts("Number of menu items: ");
-    log_put_uint8(menu_num_items);
-    log_nl();
-
-    for(uint8_t i = 0; i < MENU_HEIGHT; i++)
-    {
-        if(i < menu_num_items)
-        {
-            fat32_read(menu[i].string, 20);
-            menu[i].string[20] = 0;
-
-            fat32_read(0, 10); // Slip category (6) + num items (3) + nl (1)
-        } else {
-            menu[i].string[0] = 0;
-        }
-    }
-
-    fat32_close_file();
-
-    menu_top = 0;
-    
-    ssd1306_clear();
-}
-
-void menu_reload(uint8_t start)
-{
-    fat32_open_root_dir();
-    fat32_open_file("CAT     TXT");
-
-    fat32_read(0, 3); // Skip num cat + new line
-    fat32_read(0, 30 * start);
-
-    for(uint8_t i = 0; i < MENU_HEIGHT; i++)
-    {
-        if(i < menu_num_items)
-        {
-            fat32_read(menu[i].string, 20);
-            menu[i].string[20] = 0;
-
-            fat32_read(0, 10); // Skip category (6) + num items (3) + nl (1)
-        } else {
-            menu[i].string[0] = 0;
-        }
-    }
-
-    fat32_close_file();
-}
-
-void menu_read_info(uint8_t start, char *str, uint8_t *len)
-{
-    fat32_open_root_dir();
-    fat32_open_file("CAT     TXT");
-
-    fat32_read(0, 3); // Skip num cat + new line
-    fat32_read(0, 30 * start);
-    fat32_read(0, 20); // Skip name
-
-    fat32_read(str, 6);
-
-    char numstr[3];
-    fat32_read(numstr, 3);
-
-    *len = (numstr[1]-'0')*10 + (numstr[2]-'0');
-
-    fat32_close_file();
-}
-
-void menu_redraw()
-{
-    for(uint8_t i = 0; i < MENU_HEIGHT; i++)
-    {
-        if(menu_current_option == menu_top + i)
-        {
-            ssd1306_puts("\x10", 0, i);
-        } else {
-            ssd1306_puts(" ", 0, i);
-        }
-
-        ssd1306_puts(menu[i].string, 8, i);
-    }
-}
-
-uint8_t menu_handle_input()
-{
-    uint8_t action = 0;
-    
-    switch(get_input())
-    {
-    case BUTTON_PRESS_UP:
-        menu_current_option--;
-        if(menu_current_option < 0)
-        {
-            menu_current_option = 0;
-        }
-        if(menu_current_option < menu_top)
-        {
-            menu_top--;
-            menu_reload(menu_top);
-        }
-        action = MENU_REDRAW;
-        break;
-
-    case BUTTON_PRESS_DOWN:
-        menu_current_option++;
-        if(menu_current_option > menu_num_items-1)
-        {
-            menu_current_option = menu_num_items-1;
-        }
-        if(menu_current_option > menu_top + MENU_HEIGHT - 1)
-        {
-            menu_top++;
-            menu_reload(menu_top);
-        }
-        action = MENU_REDRAW;
-        break;
-
-    case BUTTON_PRESS_RIGHT:
-    case BUTTON_PRESS_LEFT:
-        action = MENU_PLAY;
-        break;
-
-    default:
-        break;
-    }
-
-    return action;
-}
-
-void menu_loop()
-{
-    menu_redraw();
-    
-    for(;;)
-    {
-        uint8_t action = menu_handle_input();
-
-        if(action == MENU_REDRAW)
-        {
-            menu_redraw();
-        } else if(action == MENU_PLAY) {
-            char catname[6];
-            uint8_t num;
-
-            menu_read_info(menu_current_option, catname, &num);
-            
-            log_puts("Play: \"");
-            for(uint8_t i = 0; i < 6; i++)
-            {
-                log_putc(catname[i]);
-            }
-            log_puts("\"\n");
-            ssd1306_clear();
-
-            ssd1306_puts("Playing:",0,0);
-            ssd1306_puts(menu[menu_current_option-menu_top].string,0,1);
-            
-            category_play(catname, num);
-
-            menu_redraw();
-        }
-    }
-}
-
-
-
-
-
 int main()
 {
     io_init();
@@ -712,6 +529,8 @@ int main()
 
     cbuf_init(reg_address);
     cbuf_init(reg_data);
+
+    _delay_ms(300);
 
     sei();
 
@@ -738,8 +557,17 @@ int main()
 
     reset_channels();
 
-    menu_init();
-    menu_loop();
+    uint8_t choice = 0;
+
+    struct menu_info_t menu_info;
+    menu_init("CAT", &menu_info);
+
+    for(;;)
+    {
+        uint8_t res = menu_loop(&menu_info);
+        choice = res & ~MENU_BACK_FLAG;
+        category_play(choice);
+    }
 }
 
 uint8_t frame_counter;
@@ -759,6 +587,11 @@ ISR(TIMER0_COMPA_vect) // Frame clock
     }
 
     frame_counter = cnt;
+}
+
+ISR(TIMER1_COMPA_vect) // Push out new data
+{
+    global_timer++;
 }
 
 ISR(TIMER2_COMPA_vect) // Push out new data
