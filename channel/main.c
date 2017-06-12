@@ -1,5 +1,4 @@
 #include <avr/io.h>
-#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
@@ -17,6 +16,10 @@
 #define timer1_start() do { TCCR1B |=  _BV(CS11); } while(0)
 #define timer1_stop()  do { TCCR1B &= ~_BV(CS11); } while(0)
 
+#define CHAN_SQ1   0
+#define CHAN_SQ2   1
+#define CHAN_TRI   2
+#define CHAN_NOISE 3
 
 
 typedef struct
@@ -76,11 +79,6 @@ const uint16_t noise_period_lut[] = {
 };
 
 const uint8_t duty_tab[] = {2, 4, 8, 2};
-
-#define CHAN_SQ1   0
-#define CHAN_SQ2   1
-#define CHAN_TRI   2
-#define CHAN_NOISE 3
 
 
 #define reg_address_LEN 32
@@ -460,7 +458,7 @@ void (*frame_update)();
 
 void io_init()
 {
-    set_outputs(PINS_DAC);
+//    set_outputs(PINS_DAC);
 
     set_inputs(PINS_BUS);
     disable_pullups(PINS_BUS);
@@ -476,8 +474,12 @@ void io_init()
     set_input(PIN_CONF0);
     set_input(PIN_CONF1);
 
+    DDRC = 0x1F;
+
     enable_pullup(PIN_CONF0);
     enable_pullup(PIN_CONF1);
+
+    //PINS_DAC_DDR |= 0x0F;
 }
 
 void timers_init()
@@ -497,6 +499,7 @@ void interrupts_init()
 
 int main()
 {
+
     io_init();
     timers_init();
     interrupts_init();
@@ -562,9 +565,10 @@ int main()
     }
 }
 
-
 ISR(TIMER1_COMPA_vect)
 {
+    set_high(PIN_LED);
+
     static uint8_t step = 0;
 
 
@@ -581,31 +585,33 @@ ISR(TIMER1_COMPA_vect)
         } else {
             PINS_DAC_PORT &= 0xF0;
         }
-        break;
     }
+    break;
 
     case CHAN_TRI:
     {
         if((channel.linear_counter > 0) && (channel.length_counter > 0))
         {
             step = (step + 1) & 0x1F;
-        }
 
-        uint8_t val = step;
-        if(val & 0x10)
-        {
-            val = ~step;
-        }
+            uint8_t val = step;
+        
+            if(step & 0x10)
+            {
+                val = ~step;
+            }
 
-        PINS_DAC_PORT = (PINS_DAC_PORT & 0xF0) | (val & 0x0F);
-        break;
+            PINS_DAC_PORT = (PINS_DAC_PORT & 0xF0) | (val & 0x0F);
+        }
     }
+    break;
 
     case CHAN_NOISE:
     default:
     {
-
         uint8_t feedback;
+
+        
         if(channel.shift_mode)
         {
             feedback = ((channel.shift_register & _BV(0)) ^ ((channel.shift_register & _BV(6)) >> 6));
@@ -614,6 +620,7 @@ ISR(TIMER1_COMPA_vect)
         }
 
         channel.shift_register >>= 1;
+
         if(feedback)
         {
             channel.shift_register |= 0x4000;
@@ -626,9 +633,11 @@ ISR(TIMER1_COMPA_vect)
         } else {
             PINS_DAC_PORT &= 0xF0;
         }
-        break;
     }
+    break;
     }
+
+    set_low(PIN_LED);
 }
 
 
@@ -651,5 +660,5 @@ ISR(PCINT1_vect)
 {
     frame_flag = 1;
 
-    toggle(PIN_LED);
+//    toggle(PIN_LED);
 }
