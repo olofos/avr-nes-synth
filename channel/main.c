@@ -8,6 +8,8 @@
 #include <stddef.h>
 
 #include "config.h"
+#include "registers.h"
+
 #include "io.h"
 
 #include "cbuf.h"
@@ -27,12 +29,15 @@ typedef struct
     uint16_t period;                         // Square + Noise + Triangle
     volatile uint8_t enabled;                // Square + Noise + Triangle
     uint8_t length_counter_halt_flag;        // Square + Noise + Triangle
+
+#if 0 // moved to register    
     volatile uint8_t length_counter;         // Square + Noise + Triangle
 
     union {
         volatile uint8_t volume;             // Square + Noise
         volatile uint8_t linear_counter;     // Triangle
     };
+#endif
 
     union {
         uint8_t env_reload_flag;             // Square + Noise
@@ -48,10 +53,12 @@ typedef struct
     uint8_t env_divider;                     // Square + Noise
     uint8_t env_volume;                      // Square + Noise
 
+#if 0 // moved to register & GPIOR0    
     union {
         volatile uint8_t duty_cycle;         // Square
         volatile uint8_t shift_mode;         // Noise
     };
+#endif
 
     union {
         uint16_t sweep_period;               // Square
@@ -67,6 +74,9 @@ typedef struct
 } channel_t;
 
 channel_t channel;
+
+
+
 
 const uint8_t length_lut[] = {
     10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
@@ -98,8 +108,10 @@ struct
     volatile uint8_t buf[reg_data_LEN];
 } reg_data;
 
-uint8_t conf;
-volatile uint8_t frame_flag;
+
+#if 0
+volatile uint8_t frame_flag; // moved to GPIOR0
+#endif
 
 void write_reg_sq1(uint8_t address, uint8_t val)
 {
@@ -118,7 +130,7 @@ void write_reg_sq1(uint8_t address, uint8_t val)
         channel.env_const_flag = val & 0x10;
         channel.length_counter_halt_flag = val & 0x20;
 
-        channel.duty_cycle = duty_tab[val >> 6];
+        channel_duty_cycle = duty_tab[val >> 6];
 
         break;
 
@@ -152,7 +164,7 @@ void write_reg_sq1(uint8_t address, uint8_t val)
         */
         channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
 
-        channel.length_counter = length_lut[val >> 3];
+        channel_length_counter = length_lut[val >> 3];
         channel.env_reload_flag = 1;
 
         OCR1A = channel.period;
@@ -189,7 +201,7 @@ void write_reg_sq2(uint8_t address, uint8_t val)
         channel.env_const_flag = val & 0x10;
         channel.length_counter_halt_flag = val & 0x20;
 
-        channel.duty_cycle = duty_tab[val >> 6];
+        channel_duty_cycle = duty_tab[val >> 6];
 
         break;
 
@@ -223,7 +235,7 @@ void write_reg_sq2(uint8_t address, uint8_t val)
         */
         channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
 
-        channel.length_counter = length_lut[val >> 3];
+        channel_length_counter = length_lut[val >> 3];
         channel.env_reload_flag = 1;
 
         OCR1A = channel.period;
@@ -270,7 +282,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
           3-7   length counter load register
         */
         channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
-        channel.length_counter = length_lut[val >> 3];
+        channel_length_counter = length_lut[val >> 3];
 
         channel.linear_counter_reload_flag = 1;
 
@@ -312,7 +324,9 @@ void write_reg_noise(uint8_t address, uint8_t val)
           0-3 period from LUT
           7   mode
          */
-        channel.shift_mode = val & 0x80;
+
+        GPIOR0 = (GPIOR0 & ~_BV(SHIFT_MODE_BIT)) | ((val & 0x80) ? _BV(SHIFT_MODE_BIT) : 0);
+        
         channel.period = noise_period_lut[val & 0x0F];
 
         OCR1A = channel.period;
@@ -324,7 +338,7 @@ void write_reg_noise(uint8_t address, uint8_t val)
         /*
           4-7  length counter
          */
-        channel.length_counter = length_lut[val >> 3];
+        channel_length_counter = length_lut[val >> 3];
         channel.env_reload_flag = 1;
         break;
 
@@ -339,9 +353,9 @@ void frame_update_sq()
 {
     if(frame_counter++ & 0x01) // clock length counters and sweep units
     {
-	if(!channel.length_counter_halt_flag && channel.length_counter > 0)
+	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
 	{
-	    channel.length_counter--;
+	    channel_length_counter--;
 	}
 
 	// TODO: clock sweep counter
@@ -370,13 +384,13 @@ void frame_update_sq()
 	channel.env_divider--;
     }
 
-    if(!channel.length_counter)
+    if(!channel_length_counter)
     {
-        channel.volume = 0;
+        channel_volume = 0;
     } else if(channel.env_const_flag) {
-	channel.volume = channel.env_reload_value;
+	channel_volume = channel.env_reload_value;
     } else {
-	channel.volume = channel.env_volume;
+	channel_volume = channel.env_volume;
     }
 }
 
@@ -384,9 +398,9 @@ void frame_update_noise()
 {
     if(frame_counter++ & 0x01) // clock length counters and sweep units
     {
-	if(!channel.length_counter_halt_flag && channel.length_counter > 0)
+	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
 	{
-	    channel.length_counter--;
+	    channel_length_counter--;
 	}
 
 	// TODO: clock sweep counter
@@ -415,13 +429,13 @@ void frame_update_noise()
 	channel.env_divider--;
     }
 
-    if(!channel.length_counter)
+    if(!channel_length_counter)
     {
-        channel.volume = 0;
+        channel_volume = 0;
     } else if(channel.env_const_flag) {
-	channel.volume = channel.env_reload_value;
+	channel_volume = channel.env_reload_value;
     } else {
-	channel.volume = channel.env_volume;
+	channel_volume = channel.env_volume;
     }
 }
 
@@ -430,9 +444,9 @@ void frame_update_tri()
 {
     if(frame_counter++ & 0x01) // clock length counters and sweep units
     {
-	if(!channel.length_counter_halt_flag && channel.length_counter > 0)
+	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
 	{
-	    channel.length_counter--;
+	    channel_length_counter--;
 	}
     }
 
@@ -440,9 +454,9 @@ void frame_update_tri()
     
     if(channel.linear_counter_reload_flag)
     {
-	channel.linear_counter = channel.linear_counter_reload_value;
-    } else if(channel.linear_counter > 0) {
-	channel.linear_counter--;
+	channel_linear_counter = channel.linear_counter_reload_value;
+    } else if(channel_linear_counter > 0) {
+	channel_linear_counter--;
     }
 
     if(!channel.length_counter_halt_flag)
@@ -458,7 +472,7 @@ void (*frame_update)();
 
 void io_init()
 {
-//    set_outputs(PINS_DAC);
+    set_outputs(PINS_DAC);
 
     set_inputs(PINS_BUS);
     disable_pullups(PINS_BUS);
@@ -474,12 +488,8 @@ void io_init()
     set_input(PIN_CONF0);
     set_input(PIN_CONF1);
 
-    DDRC = 0x1F;
-
     enable_pullup(PIN_CONF0);
     enable_pullup(PIN_CONF1);
-
-    //PINS_DAC_DDR |= 0x0F;
 }
 
 void timers_init()
@@ -499,7 +509,6 @@ void interrupts_init()
 
 int main()
 {
-
     io_init();
     timers_init();
     interrupts_init();
@@ -507,7 +516,9 @@ int main()
     cbuf_init(reg_address);
     cbuf_init(reg_data);
 
-    conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
+    GPIOR0 = (GPIOR0 & ~(_BV(CONF0_BIT) | _BV(CONF1_BIT))) | (is_high(PIN_CONF0) ? _BV(CONF0_BIT) : 0) | (is_high(PIN_CONF1) ? _BV(CONF1_BIT) : 0);
+
+    uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
     switch(conf)
     {
@@ -531,7 +542,12 @@ int main()
         write_reg = write_reg_noise;
         frame_update = frame_update_noise;
 
+        channel_volume = 0;
+
         channel.shift_register = 0x0001;
+
+        shift_register_hi = 0;
+        shift_register_lo = 1;
         break;
     }
 
@@ -548,97 +564,97 @@ int main()
     sei();    
 
     for(;;)
-    {
+    {        
+
         while(!cbuf_empty(reg_data))
         {
             uint8_t address = cbuf_pop(reg_address);
             uint8_t val = cbuf_pop(reg_data);
 
             write_reg(address, val);
-        }
+        }                
         
-        if(frame_flag)
+        if(GPIOR0 & _BV(FRAME_FLAG_BIT))
         {
-            frame_flag = 0;
+            GPIOR0 &= ~_BV(FRAME_FLAG_BIT);
             frame_update();
+
+            set_low(PIN_LED);
         }
     }
 }
 
+
+
+#ifndef ASMINTERRUPT
 ISR(TIMER1_COMPA_vect)
 {
     set_high(PIN_LED);
 
-    static uint8_t step = 0;
-
-
-    switch(conf)
+    if(!(GPIOR0 & _BV(CONF1_BIT)))
     {
-    case CHAN_SQ1:
-    case CHAN_SQ2:
-    {
-        step = (step+1) & 0x0F;
+        // case CHAN_SQ1:
+        // case CHAN_SQ2:
+
+        channel_step = (channel_step+1) & 0x0F;
         
-        if(step < channel.duty_cycle)
+        if(channel_step < channel_duty_cycle)
         {
-            PINS_DAC_PORT |= channel.volume;
+            PINS_DAC_PORT |= channel_volume;
         } else {
             PINS_DAC_PORT &= 0xF0;
         }
-    }
-    break;
-
-    case CHAN_TRI:
-    {
-        if((channel.linear_counter > 0) && (channel.length_counter > 0))
+    } else {
+        if(!(GPIOR0 & _BV(CONF0_BIT)))
         {
-            step = (step + 1) & 0x1F;
-
-            uint8_t val = step;
-        
-            if(step & 0x10)
+            // case CHAN_TRI:
+            if((channel_linear_counter > 0) && (channel_length_counter > 0))
             {
-                val = ~step;
+                channel_step = (channel_step + 1) & 0x1F;
+
+                uint8_t val = channel_step;
+        
+                if(channel_step & 0x10)
+                {
+                    val = ~channel_step;
+                }
+
+                PINS_DAC_PORT = (PINS_DAC_PORT & 0xF0) | (val & 0x0F);
+            }
+        } else {
+            // case CHAN_NOISE:
+            uint8_t feedback;
+
+            if(GPIOR0 & _BV(SHIFT_MODE_BIT))
+            {
+                feedback = ((shift_register_lo & _BV(0)) ^ ((shift_register_lo & _BV(6)) >> 6));
+            } else {
+                feedback = ((shift_register_lo & _BV(0)) ^ ((shift_register_lo & _BV(1)) >> 1));
             }
 
-            PINS_DAC_PORT = (PINS_DAC_PORT & 0xF0) | (val & 0x0F);
+            // 16-bit shift right
+            asm volatile(
+                "lsr %0\t\n"
+                "ror %1\t\n"
+                : "=&r" (shift_register_hi), "=&r" (shift_register_lo):);
+
+            if(feedback)
+            {
+                shift_register_hi |= 0x40;
+            }
+
+            if(!(shift_register_lo & _BV(0)))
+            {
+                PINS_DAC_PORT |= channel_volume;
+            } else {
+                PINS_DAC_PORT &= 0xF0;
+            }
         }
-    }
-    break;
-
-    case CHAN_NOISE:
-    default:
-    {
-        uint8_t feedback;
-
-        
-        if(channel.shift_mode)
-        {
-            feedback = ((channel.shift_register & _BV(0)) ^ ((channel.shift_register & _BV(6)) >> 6));
-        } else {
-            feedback = ((channel.shift_register & _BV(0)) ^ ((channel.shift_register & _BV(1)) >> 1));
-        }
-
-        channel.shift_register >>= 1;
-
-        if(feedback)
-        {
-            channel.shift_register |= 0x4000;
-        }
-
-        
-        if(!(channel.shift_register & _BV(0)))
-        {
-            PINS_DAC_PORT |= channel.volume;
-        } else {
-            PINS_DAC_PORT &= 0xF0;
-        }
-    }
-    break;
     }
 
     set_low(PIN_LED);
 }
+#endif
 
 
 // High: address, Low: data
@@ -654,11 +670,13 @@ ISR(PCINT0_vect)
 }
 
 
+#ifndef ASMINTERRUPT
+
 // TODO: Use flag in GPIOR0?
 
 ISR(PCINT1_vect)
 {
-    frame_flag = 1;
-
-//    toggle(PIN_LED);
+    GPIOR0 |= _BV(FRAME_FLAG_BIT);
 }
+
+#endif

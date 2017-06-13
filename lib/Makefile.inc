@@ -2,12 +2,12 @@ CC=avr-gcc
 CFLAGS+=-Wall -Werror -Os -DF_CPU=$(F_CPU) -mmcu=$(MCU) -std=gnu11 -I. -I$(LIBDIR) -gdwarf-2 -fverbose-asm -fshort-enums 
 LDFLAGS+=-Wall -Os -DF_CPU=$(F_CPU) -mmcu=$(MCU) -std=gnu11 -I. -I$(LIBDIR) -gdwarf-2 -fverbose-asm -fshort-enums
 
-CFLAGS+=-ffunction-sections -fdata-sections
+#CFLAGS+=-ffunction-sections -fdata-sections
 #LDFLAGS+=-Wl,-gc-sections -Wl,-print-gc-sections
 #LDFLAGS+=-Wl,-gc-sections
 
 #CFLAGS+=-flto
-#LDFLAGS+=-flto
+#LDFLAGS+=-flto=4
 
 OBJCOPY=avr-objcopy
 OBJDUMP=avr-objdump
@@ -22,9 +22,12 @@ AVRDUDE=avrdude -v -v
 
 RM=rm -f
 
-OBJECTS=$(SOURCES:.c=.o)
-ASM=$(SOURCES:.c=.s)
-DEPS=$(patsubst %.c, .deps/%.d, $(SOURCES))
+CSOURCES=$(filter %.c, $(SOURCES))
+ASMSOURCES=$(filter %.asm, $(SOURCES))
+
+OBJECTS=$(CSOURCES:.c=.o) $(ASMSOURCES:.asm=.o)
+ASM=$(CSOURCES:.c=.s) $(ASMSOURCES:.asm=.s)
+DEPS=$(patsubst %.c, .deps/%.d, $(CSOURCES))
 
 VPATH=$(LIBDIR)
 
@@ -43,8 +46,8 @@ upload: $(TARGET).hex
 ifeq ($(PROGRAMMER),arduino)	
 	$(AVRDUDE) -p$(PART) -P$(PORT) -c$(PROGRAMMER) -b$(BAUD) -U flash:w:$<
 else
-	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -B4 -U flash:w:$<
 #	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -U flash:w:$<
+	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -B1 -U flash:w:$<
 endif
 
 %.hex: %.elf
@@ -62,3 +65,6 @@ $(TARGET).lss: $(TARGET).elf
 %.s: %.c
 	$(CC) $(CFLAGS) -S -o $@ $<
 	@$(CC) -MM $(CFLAGS) $< > .deps/$*.d
+
+%.s: %.asm
+	$(CC) $(CFLAGS) -x assembler-with-cpp -E -o $@ $<

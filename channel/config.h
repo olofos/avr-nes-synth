@@ -1,6 +1,13 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+// GPIOR0 bits
+
+#define CONF0_BIT          0
+#define CONF1_BIT          1
+#define FRAME_FLAG_BIT     2
+#define SHIFT_MODE_BIT     7
+
 
 // Audio out
 
