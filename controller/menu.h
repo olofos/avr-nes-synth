@@ -2,6 +2,7 @@
 #define MENU_H_
 
 #define MENU_BACK_FLAG 0x80
+#define MENU_EXT "MNU"
 
 struct menu_info_t
 {

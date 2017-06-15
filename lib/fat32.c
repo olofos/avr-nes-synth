@@ -280,6 +280,24 @@ uint16_t fat32_read(void *sd_buf, uint16_t len)
     return read;
 }
 
+uint16_t fat32_skip_until(uint8_t c)
+{
+    uint16_t len = 0;
+
+    while(fat32_file.bytes_left)
+    {
+        char d;
+        fat32_read(&d, 1);
+        len++;
+        if(d == c)
+        {
+            break;
+        }
+    }
+    
+    return len;
+}
+
 
 static void fat32_create_cluster_cache(uint32_t cluster)
 {

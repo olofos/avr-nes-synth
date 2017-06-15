@@ -22,7 +22,7 @@ void menu_init(const char* name, struct menu_info_t *menu_info)
     menu_info->name[8] = 0;
     
     fat32_open_root_dir();
-    fat32_open_file(menu_info->name, "TXT");
+    fat32_open_file(menu_info->name, MENU_EXT);
     log_puts("Reading menu\n");
     
     fat32_seek(0);
@@ -48,14 +48,12 @@ void menu_redraw(struct menu_info_t *menu_info)
 {
     fat32_seek(0);
 
-    fat32_read(0, 3); // Skip num cat + new line
+//    fat32_read(0, 3); // Skip num cat + new line
+    fat32_skip_until('\n');        
 
     for(uint8_t i = 0; i < menu_info->top; i++)
     {
-        char c;
-        do {
-            fat32_read(&c, 1);
-        } while(c != '\n');
+        fat32_skip_until('\n');
     }
 
     for(uint8_t i = 0; i < MENU_HEIGHT; i++)
@@ -81,9 +79,7 @@ void menu_redraw(struct menu_info_t *menu_info)
                 fat32_read(&c, 1);
                 ssd1306_text_putc(c);
             }
-            do {
-                fat32_read(&c, 1);
-            } while(c != '\n');
+            fat32_skip_until('\n');
         } else {
             for(uint8_t j = 0; j < 20; j++)
             {
@@ -131,7 +127,7 @@ void menu_prev(struct menu_info_t *menu_info)
 
 void menu_next(struct menu_info_t *menu_info)
 {
-    if(menu_info->current_option < menu_info->num_items-2)
+    if(menu_info->current_option < menu_info->num_items-1)
     {
         menu_info->current_option++;
     }
@@ -147,7 +143,7 @@ uint8_t menu_loop(struct menu_info_t *menu_info)
     ssd1306_clear();
 
     fat32_open_root_dir();
-    fat32_open_file(menu_info->name, "TXT");
+    fat32_open_file(menu_info->name, MENU_EXT);
     
     menu_redraw(menu_info);
 

@@ -14,6 +14,7 @@
 #define BUTTON_RAW_RELEASE_DOWN  0x02
 #define BUTTON_RAW_RELEASE_LEFT  0x01
 
+#define HOLD_TIME 3
 
 uint8_t get_input()
 {
@@ -54,7 +55,7 @@ uint8_t get_input()
 
     if(!in)
     {
-        if(global_timer - input_time > 3)
+        if(global_timer - input_time > HOLD_TIME)
         {
 
             if(prev & BUTTON_RAW_PRESS_LEFT)

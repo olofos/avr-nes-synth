@@ -91,7 +91,7 @@ static const struct ssd1306_frame_t full_frame = { .col_start = 0x00, .col_end =
 void ssd1306_init()
 {
     // Begin the I2C comm with SSD1306's address (SLA+Write)
-    i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
+    i2c_start_wait(OLED_I2C_ADDRESS, I2C_WRITE);
     i2c_write_P(ssd1306_init_seq, sizeof(ssd1306_init_seq) / sizeof(ssd1306_init_seq[0]));
     i2c_stop();
 }

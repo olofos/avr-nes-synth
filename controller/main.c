@@ -11,6 +11,8 @@
  *   and outputs the frame clock. At every four frames it starts timer 2
  *   to output data
  *
+ * - Timer 1 fires at 8 Hz and increments global_timer
+ *
  * - Timer 2 fires at around 60 kHz. It outputs the data from the address 
  *   and value buffers to the bus, and stops itself once it finds the end 
  *   of frame marker
@@ -343,7 +345,7 @@ void reset_channels()
     cbuf_init(reg_address);
     cbuf_init(reg_data);
 
-    for(uint8_t n = 0; n < 17; n++)
+    for(uint8_t n = 0; n <= 0x17; n++)
     {
         cbuf_push(reg_address, n);
         cbuf_push(reg_data, 0);
@@ -353,6 +355,9 @@ void reset_channels()
 
     timer2_start();
 }
+
+// maximum play time for each song in units of 1/8 s
+#define MAX_PLAY_TIME (8 * 60 * 3)
 
 uint8_t song_play(const char* filename)
 {
@@ -368,7 +373,7 @@ uint8_t song_play(const char* filename)
     {
         song_read_data();
 
-        if(global_timer - start_time > 8 * 60 * 3)
+        if(global_timer - start_time > MAX_PLAY_TIME)
         {
             song_done = 1  ;
         }
@@ -421,12 +426,15 @@ uint8_t song_handle_inputs()
 void category_read_info(uint8_t choice, char *catname, uint8_t *len)
 {
     fat32_open_root_dir();
-    fat32_open_file("CAT", "TXT");
+    fat32_open_file("CAT", MENU_EXT);
 
     fat32_seek(0);
 
-    fat32_read(0, 3); // Skip num cat + new line
-    fat32_read(0, 30 * choice);
+    fat32_skip_until('\n'); // Skip number of lines + new line
+    for(uint8_t i = 0; i < choice; i++)
+    {
+        fat32_skip_until('\n');
+    }
 
     ssd1306_text_start(0,1);
     
@@ -530,8 +538,6 @@ int main()
     cbuf_init(reg_address);
     cbuf_init(reg_data);
 
-    _delay_ms(300);
-
     sei();
 
     ssd1306_init();
@@ -557,20 +563,37 @@ int main()
 
     reset_channels();
 
-    uint8_t choice = 0;
+//    uint8_t choice = 0;
 
-    struct menu_info_t menu_info;
-    menu_init("CAT", &menu_info);
+    struct menu_info_t main_menu_info;
+    struct menu_info_t game_menu_info;
+
+    menu_init("MAIN", &main_menu_info);
+    menu_init("CAT", &game_menu_info);
 
     for(;;)
     {
-        uint8_t res = menu_loop(&menu_info);
-        choice = res & ~MENU_BACK_FLAG;
-        category_play(choice);
+        uint8_t res;
+
+        res = menu_loop(&main_menu_info);
+        if(!res)
+        {
+            for(;;)
+            {
+                res = menu_loop(&game_menu_info);
+                if(res & MENU_BACK_FLAG)
+                    break;
+                
+                category_play(res);
+            }
+        } else {
+            ssd1306_splash();
+            _delay_ms(500);
+        }
     }
 }
 
-uint8_t frame_counter;
+static uint8_t frame_counter;
 
 ISR(TIMER0_COMPA_vect) // Frame clock
 {
