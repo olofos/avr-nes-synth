@@ -11,6 +11,7 @@
 
 
 
+#ifdef PIN_SD_CS
 
 
 typedef struct 
@@ -81,8 +82,7 @@ uint32_t sd_read_uint32()
     uint8_t byte3 = SPI_transfer(0xFF);
 
     sd_data.sector_bytes_left -= 4;
-    return ((uint32_t) byte3 << 24) | ((uint32_t) byte2 << 16)
-        | ((uint32_t) byte1 << 8) | byte0;
+    return ((uint32_t) byte3 << 24) | ((uint32_t) byte2 << 16) | ((uint32_t) byte1 << 8) | byte0;
 }
 
 uint16_t sd_read_uint16()
@@ -172,3 +172,5 @@ void sd_init()
 
     sd_data.sector_bytes_left = 0;
 }
+
+#endif

@@ -18,19 +18,26 @@ PART=$(MCU)
 BAUD=115200
 PROTOCOL=stk500v1
 PART=$(MCU)
-AVRDUDE=avrdude -v -v
+AVRDUDE=avrdude -q
 
 RM=rm -f
+
+LIBSOURCES=logo-paw-64x64.c logo-paw-128x64.c fat32.c glcdfont.c log.c sd.c uart.c ssd1306.c ssd1306-console.c i2c-master.c i2c-slave.c
+
+LIBOBJECTS=$(LIBSOURCES:.c=.o)
 
 CSOURCES=$(filter %.c, $(SOURCES))
 ASMSOURCES=$(filter %.asm, $(SOURCES))
 
 OBJECTS=$(CSOURCES:.c=.o) $(ASMSOURCES:.asm=.o)
 ASM=$(CSOURCES:.c=.s) $(ASMSOURCES:.asm=.s)
-DEPS=$(patsubst %.c, .deps/%.d, $(CSOURCES))
 
 VPATH=$(LIBDIR)
 
+LIBNAME=common
+LIBNAMEFULL:=lib$(LIBNAME).a
+
+DEPS=$(patsubst %.c, .deps/%.d, $(CSOURCES)) $(patsubst %.o, .deps/%.d, $(LIBOBJECTS))
 
 .PHONY: all clean upload
 .SUFFIXES:
@@ -40,7 +47,8 @@ all: $(TARGET).hex
 -include $(DEPS)
 
 clean:
-	$(RM) $(OBJECTS) $(ASM) $(TARGET).elf $(TARGET).hex $(DEPS)
+	@echo Cleaning up
+	@$(RM) $(OBJECTS) $(LIBOBJECTS) $(ASM) $(TARGET).elf $(TARGET).hex $(DEPS) $(LIBNAMEFULL)
 
 upload: $(TARGET).hex
 ifeq ($(PROGRAMMER),arduino)	
@@ -50,21 +58,43 @@ else
 	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -B1 -U flash:w:$<
 endif
 
-%.hex: %.elf
-	$(OBJCOPY) -O $(BIN_FORMAT) -R .eeprom $< $@
+lss: $(TARGET).lss
 
-$(TARGET).elf: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $^
+
+$(LIBNAMEFULL): $(LIBOBJECTS)
+	@echo Creating library $@
+	@avr-ar rcs $@ $^
+
+%.hex: %.elf
+	@echo Copying $< to $@
+	@$(OBJCOPY) -O $(BIN_FORMAT) -R .eeprom $< $@
+
+$(TARGET).elf: $(OBJECTS) $(LIBNAMEFULL)
+	@echo Linking $@
+	@$(CC) $(OBJECTS) $(LDFLAGS) -L. -l$(LIBNAME) -o $@ 
 
 $(TARGET).lss: $(TARGET).elf
-	$(OBJDUMP) -h -S $< > $@
+	@echo Dumping $< to $@
+	@$(OBJDUMP) -h -S $< > $@
+
+%.o: %.c
+	@echo Compiling $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) -MM $(CFLAGS) $< > .deps/$*.d
+
+%.o: %.asm
+	@echo Assembling $<
+	@$(CC) $(CFLAGS) -x assembler-with-cpp -c -o $@ $<
 
 %.o: %.s
-	$(CC) $(CFLAGS) -c -s -o $@ $<
+	@echo Assembling $<
+	@$(CC) $(CFLAGS) -c -s -o $@ $<
 
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	@echo Compiling $<
+	@$(CC) $(CFLAGS) -S -o $@ $<
 	@$(CC) -MM $(CFLAGS) $< > .deps/$*.d
 
 %.s: %.asm
-	$(CC) $(CFLAGS) -x assembler-with-cpp -E -o $@ $<
+	@echo Pre-processing $<
+	@$(CC) $(CFLAGS) -x assembler-with-cpp -E -o $@ $<

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <avr/pgmspace.h>
 
 #include "config.h"
 #include "fat32.h"
@@ -174,7 +175,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
 #endif
 }
 
-static inline uint32_t fat32_get_sector(const uint32_t cluster, uint16_t sector)
+static uint32_t fat32_get_sector(const uint32_t cluster, uint16_t sector)
 {
     return fat32_data.data_start + (cluster - 2) * fat32_data.sectors_per_cluster + sector;
 }
@@ -432,7 +433,9 @@ void fat32_close_file()
 void fat32_seek(uint16_t len)
 {
     uint16_t seek_clusters = len / fat32_data.sectors_per_cluster / BYTES_PER_SECTOR;
-    uint16_t seek_sectors = (len - seek_clusters * fat32_data.sectors_per_cluster) / BYTES_PER_SECTOR;
+//    uint16_t seek_sectors = (len - seek_clusters * fat32_data.sectors_per_cluster) / BYTES_PER_SECTOR; // This looks wrong!
+    // Should probably be:
+    uint16_t seek_sectors = (len / BYTES_PER_SECTOR) - seek_clusters * fat32_data.sectors_per_cluster;
     uint16_t seek_bytes = len % BYTES_PER_SECTOR;
 
 #if FAT32_DEBUG

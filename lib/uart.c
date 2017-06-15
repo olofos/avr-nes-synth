@@ -7,6 +7,8 @@
 #include "config.h"
 #include "uart.h"
 
+#ifdef BAUD
+
 #include <util/setbaud.h>
 
 uart_rx_cbuf_t uart_rx_cbuf;
@@ -116,3 +118,5 @@ ISR(USART_UDRE_vect)
         UCSR0B &= ~_BV(UDRIE0); // disable UDRE Interrupt
     }
 }
+
+#endif

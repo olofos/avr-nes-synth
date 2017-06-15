@@ -331,6 +331,10 @@ void song_read_data()
             log_puts("Loop to 0x");
             log_put_uint16_hex(dest);
             log_puts("\n");
+
+
+            toggle(PIN_LED);
+            
             fat32_seek(dest);
         } else {
             cbuf_push(reg_address, data[0]);

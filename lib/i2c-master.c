@@ -6,6 +6,8 @@
 #include "io.h"
 #include "i2c-master.h"
 
+#ifdef SCL_CLOCK
+
 
 void i2c_master_init()
 {
@@ -181,3 +183,4 @@ uint8_t i2c_read_nak(void)
     return TWDR;
 }
 
+#endif
