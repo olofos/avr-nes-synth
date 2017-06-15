@@ -59,12 +59,14 @@ done:
         pop     temp1
         out     _SFR_IO_ADDR(SREG), temp1
         pop     temp1
+
 //        cbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         reti
 
 triangle:        
-        mov     temp1, channel_length_counter
-        and     temp1, channel_linear_counter
+        and     channel_linear_counter, channel_linear_counter
+        breq    done
+        and     channel_length_counter, channel_length_counter
         breq    done
 
         inc     channel_step
@@ -98,7 +100,7 @@ square:
         .global PCINT1_vect
 PCINT1_vect:
         sbi _SFR_IO_ADDR(GPIOR0), FRAME_FLAG_BIT
-                sbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
+//        sbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         reti
 
 #endif

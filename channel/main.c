@@ -62,7 +62,9 @@ typedef struct
 
     union {
         uint16_t sweep_period;               // Square
-        uint16_t shift_register;             // Noise TODO: does this need volatile?
+#if 0 // moved to register
+        uint16_t shift_register;             // Noise
+#endif
     };
 
     uint8_t sweep_divider;                   // Square
@@ -83,8 +85,10 @@ const uint8_t length_lut[] = {
     12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
 };
 
+// Note: the lowest value is made a bit larger in order for the interrupt to have time to fire
 const uint16_t noise_period_lut[] = {
-    0x004, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
+//    0x004, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
+    0x008, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
     0x0ca, 0x0fe, 0x17c, 0x1fc, 0x2fa, 0x3f8, 0x7f2, 0xfe4
 };
 
@@ -396,14 +400,12 @@ void frame_update_sq()
 
 void frame_update_noise()
 {
-    if(frame_counter++ & 0x01) // clock length counters and sweep units
+    if(frame_counter++ & 0x01) // clock length counters
     {
 	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
 	{
 	    channel_length_counter--;
 	}
-
-	// TODO: clock sweep counter
     }
 
 
@@ -437,12 +439,17 @@ void frame_update_noise()
     } else {
 	channel_volume = channel.env_volume;
     }
+
+    if(!channel_volume)
+    {
+        timer1_stop();
+    }
 }
 
 
 void frame_update_tri()
 {
-    if(frame_counter++ & 0x01) // clock length counters and sweep units
+    if(frame_counter++ & 0x01) // clock length counters
     {
 	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
 	{
@@ -544,8 +551,6 @@ int main()
 
         channel_volume = 0;
 
-        channel.shift_register = 0x0001;
-
         shift_register_hi = 0;
         shift_register_lo = 1;
         break;
@@ -572,14 +577,16 @@ int main()
             uint8_t val = cbuf_pop(reg_data);
 
             write_reg(address, val);
-        }                
-        
+        }
+
+        set_low(PIN_LED);
+                    
         if(GPIOR0 & _BV(FRAME_FLAG_BIT))
         {
+//            set_high(PIN_LED);
             GPIOR0 &= ~_BV(FRAME_FLAG_BIT);
             frame_update();
-
-            set_low(PIN_LED);
+//            set_low(PIN_LED);
         }
     }
 }
@@ -654,8 +661,13 @@ ISR(TIMER1_COMPA_vect)
 
     set_low(PIN_LED);
 }
-#endif
 
+ISR(PCINT1_vect)
+{
+    GPIOR0 |= _BV(FRAME_FLAG_BIT);
+}
+
+#endif
 
 // High: address, Low: data
 
@@ -667,16 +679,5 @@ ISR(PCINT0_vect)
     } else {
         cbuf_push(reg_data, PINS_BUS_PIN);
     }
+    set_high(PIN_LED);
 }
-
-
-#ifndef ASMINTERRUPT
-
-// TODO: Use flag in GPIOR0?
-
-ISR(PCINT1_vect)
-{
-    GPIOR0 |= _BV(FRAME_FLAG_BIT);
-}
-
-#endif
