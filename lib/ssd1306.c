@@ -175,7 +175,7 @@ void ssd1306_splash()
 
 void ssd1306_text_putc(char c)
 {
-    i2c_write_P(&font[5*c], 5);
+    i2c_write_P(&font[5*(uint8_t)c], 5);
     i2c_write_byte(0);
 }
 
@@ -201,6 +201,19 @@ void ssd1306_puts(const char* str, uint8_t x, uint8_t y)
 
     char c;
     while((c = *str++))
+    {
+        ssd1306_text_putc(c);
+    }
+
+    ssd1306_text_end();
+}
+
+void ssd1306_puts_P(const char* str, uint8_t x, uint8_t y)
+{
+    ssd1306_text_start(x, y);
+
+    char c;
+    while((c = pgm_read_byte(str++)))
     {
         ssd1306_text_putc(c);
     }
