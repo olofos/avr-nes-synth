@@ -292,6 +292,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
         */
 
         channel.period = (channel.period & 0xFF00) | val;
+        OCR1A = channel.period;
         break;
 
     case 0x0B:
