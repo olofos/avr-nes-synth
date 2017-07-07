@@ -532,6 +532,31 @@ void category_play(uint8_t choice)
     }
 }
 
+#define XSTR(s) STR(s)
+#define STR(s) #s
+
+static const char PROGMEM title_str[] = "NESSynth " XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION);
+static const uint8_t PROGMEM copyright_c[] = { 0x3C, 0x42, 0x99, 0xA5, 0xA5, 0x81, 0x42, 0x3C };
+static const char PROGMEM copyright_year[] = COPYRIGHT_YEAR;
+static const char PROGMEM copyright_author[] = AUTHOR;
+
+void about_show()
+{
+    ssd1306_clear();
+
+    ssd1306_puts_P(title_str,12,0);
+
+    ssd1306_text_start(0,6);
+    i2c_write_P(copyright_c, 8);
+    ssd1306_text_end();
+
+    ssd1306_puts_P(copyright_year, 12,6);
+    ssd1306_puts_P(copyright_author, 12,7);
+
+    while(!get_input())
+        ;
+}
+
 int main()
 {
     io_init();
@@ -580,8 +605,10 @@ int main()
         uint8_t res;
 
         res = menu_loop(&main_menu_info);
-        if(!res)
+
+        switch(res)
         {
+        case 0: // Songs in order
             for(;;)
             {
                 res = menu_loop(&game_menu_info);
@@ -590,7 +617,15 @@ int main()
                 
                 category_play(res);
             }
-        } else {
+            break;
+
+        case 3: // About
+            about_show();
+            break;
+
+        case 1: // Play playlist
+        case 2: // Edit playlist
+        default:
             ssd1306_splash();
             _delay_ms(500);
         }
