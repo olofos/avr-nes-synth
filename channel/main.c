@@ -60,15 +60,13 @@ typedef struct
     };
 #endif
 
-    union {
-        uint16_t sweep_period;               // Square
 #if 0 // moved to register
-        uint16_t shift_register;             // Noise
+    uint16_t shift_register;             // Noise
 #endif
-    };
 
-    uint8_t sweep_divider;                   // Square
-    uint8_t sweep_counter;                   // Square
+    uint8_t sweep_div_period;                // Square
+    uint8_t sweep_div_counter;               // Square
+    uint8_t sweep_shift;
     uint8_t sweep_neg_flag;                  // Square
     uint8_t sweep_reload_flag;               // Square
     uint8_t sweep_enabled;                   // Square
@@ -142,10 +140,18 @@ void write_reg_sq1(uint8_t address, uint8_t val)
     case 0x01:
         /*
           0-2   right shift amount
-          3     decrease / increase (1/0) wavelength
-          4-6   sweep update rate
+          3     negative
+          4-6   sweep period
           7     sweep enable
         */
+        
+        channel.sweep_enabled = val & 0x80;
+        channel.sweep_neg_flag = val & 0x08;
+
+        channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
+        channel.sweep_shift = val & 0x07;
+
+        channel.sweep_reload_flag = 1;
 
         break;
 
@@ -213,10 +219,18 @@ void write_reg_sq2(uint8_t address, uint8_t val)
     case 0x05:
         /*
           0-2   right shift amount
-          3     decrease / increase (1/0) wavelength
-          4-6   sweep update rate
+          3     negative
+          4-6   sweep period
           7     sweep enable
         */
+        
+        channel.sweep_enabled = val & 0x80;
+        channel.sweep_neg_flag = val & 0x08;
+
+        channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
+        channel.sweep_shift = val & 0x07;
+
+        channel.sweep_reload_flag = 1;
 
         break;
 
@@ -362,7 +376,42 @@ void frame_update_sq()
 	    channel_length_counter--;
 	}
 
-	// TODO: clock sweep counter
+        int16_t delta = channel.period >> channel.sweep_shift;
+
+        if(channel.sweep_neg_flag)
+        {
+            if(!(GPIOR0 & _BV(CONF0_BIT)))
+            {
+                delta = ~delta; // Pulse 1 adds the ones' complement
+            } else {
+                delta = -delta; // Pulse 2 adds the two's complement
+            }
+        }
+
+        uint16_t target_period = channel.period + delta;
+
+        if(channel.sweep_div_counter > 0) {
+            channel.sweep_div_counter--;
+        } else {
+            channel.sweep_div_counter = channel.sweep_div_period;
+
+            if((target_period > 0x07FF) || (channel.period < 8))
+            {
+                // Mute the channel?
+                // TODO: Introduce mure flag in GPIOR0?
+                channel_volume = 0;
+            } else if(channel.sweep_enabled) {
+                channel.period = target_period;
+                OCR1A = channel.period;
+            }
+        }
+
+        
+        if(channel.sweep_reload_flag)
+        {
+            channel.sweep_div_counter = channel.sweep_div_period;
+            channel.sweep_reload_flag = 0;
+        }
     }
 
 
