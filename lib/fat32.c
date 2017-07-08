@@ -342,9 +342,11 @@ static uint8_t fat32_get_file_data(const char *filename, const char *ext, struct
     uint16_t cluster_hi;
     uint16_t cluster_lo;
     uint32_t file_size;
-
-    uint16_t i = 0;
     uint8_t match;
+
+#if FAT32_DEBUG
+    uint16_t i = 0;
+#endif
 
     do {
         fat32_read(dir_filename, 8);
@@ -369,20 +371,19 @@ static uint8_t fat32_get_file_data(const char *filename, const char *ext, struct
             match = 1;
         }
 
+#if FAT32_DEBUG
         if(match)
         {
-#if FAT32_DEBUG
             log_puts_P(PSTR("Filename "));
             log_puts(filename);
             log_puts_P(PSTR(" matches file "));
             log_put_uint16(i);
             log_puts_P(PSTR("\n"));
-#endif
-            break;
         }
 
         i++;
-    } while(dir_filename[0]);
+#endif
+    } while(dir_filename[0] && !match);
 
     sd_end_sector();
 
