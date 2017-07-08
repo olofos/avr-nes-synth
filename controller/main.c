@@ -396,8 +396,9 @@ uint8_t song_play(const char* filename)
         }
     }
 
-    song_stop();
     reset_channels();
+    _delay_ms(100); // Make sure channels have time to stop playing
+    song_stop();
 
     if(!ret)
     {
@@ -595,13 +596,14 @@ int main()
 
 //    clear_inputs();
 
-    reset_channels();
-
     struct menu_info_t main_menu_info;
     struct menu_info_t game_menu_info;
 
     menu_fat32_init(menu_name_main, &main_menu_info);
     menu_fat32_init(menu_name_cat, &game_menu_info);
+
+    _delay_ms(1125);
+    reset_channels();
 
     for(;;)
     {
