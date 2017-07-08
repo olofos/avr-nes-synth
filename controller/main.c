@@ -552,15 +552,16 @@ void about_show()
 
     ssd1306_puts_P(title_str,12,0);
 
-    ssd1306_text_start(0,6);
+    ssd1306_text_start(0,7);
     i2c_write_P(copyright_c, 8);
     ssd1306_text_end();
 
-    ssd1306_puts_P(copyright_year, 12,6);
-    ssd1306_puts_P(copyright_author, 12,7);
+    ssd1306_puts_P(copyright, 12,7);
 
     while(!get_input())
         ;
+
+    ssd1306_clear();
 }
 
 int main()
