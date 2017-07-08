@@ -1,3 +1,6 @@
+#include <avr/eeprom.h>
+#include <avr/pgmspace.h>
+
 #include "config.h"
 #include "fat32.h"
 #include "ssd1306.h"
@@ -23,6 +26,70 @@ struct menu_ops_t
     void (*loop_end)(struct menu_info_t *menu_info);
 };
 
+//// PGM menu functions
+
+static void menu_pgm_find_entry(struct menu_info_t *menu_info, uint8_t num);
+static void menu_pgm_print_next_entry(struct menu_info_t *menu_info);
+static void menu_pgm_loop_begin(struct menu_info_t *menu_info);
+static void menu_pgm_loop_end(struct menu_info_t *menu_info);
+
+const struct menu_ops_t menu_pgm_ops = {
+    .find_entry = menu_pgm_find_entry,
+    .print_next_entry = menu_pgm_print_next_entry,
+    .loop_begin = menu_pgm_loop_begin,
+    .loop_end = menu_pgm_loop_end
+};
+
+static uint8_t menu_pgm_index;
+
+
+void menu_pgm_init(const char* const entries[], uint8_t num_items, struct menu_info_t *menu_info)
+{
+    menu_info->num_items = num_items;
+    menu_info->data = (void*) entries;
+    menu_info->top = 0;
+    menu_info->current_option = 0;
+    menu_info->ops = &menu_pgm_ops;
+}
+
+static void menu_pgm_find_entry(struct menu_info_t *menu_info, uint8_t num)
+{
+    menu_pgm_index = num;
+}
+
+static void menu_pgm_print_next_entry(struct menu_info_t *menu_info)
+{
+    const char *p = pgm_read_word((const char * const *)menu_info->data + menu_pgm_index);
+
+    char c;
+    uint8_t i = 0;
+
+    while((c = pgm_read_byte(p++)))
+    {
+        ssd1306_text_putc(c);
+        i++;
+    }
+
+    while(i < 20)
+    {
+        ssd1306_text_putc(' ');
+        i++;
+    }
+
+    menu_pgm_index++;
+}
+
+static void menu_pgm_loop_begin(struct menu_info_t *menu_info)
+{
+}
+
+static void menu_pgm_loop_end(struct menu_info_t *menu_info)
+{
+}
+
+
+//// FAT32 menu functions
+
 static void menu_fat32_find_entry(struct menu_info_t *menu_info, uint8_t num);
 static void menu_fat32_print_next_entry(struct menu_info_t *menu_info);
 static void menu_fat32_loop_begin(struct menu_info_t *menu_info);
@@ -34,8 +101,6 @@ const struct menu_ops_t menu_fat32_ops = {
     .loop_begin = menu_fat32_loop_begin,
     .loop_end = menu_fat32_loop_end
 };
-
-//// FAT32 menu functions
 
 void menu_fat32_init(const char* name_p, struct menu_info_t *menu_info)
 {
@@ -63,7 +128,6 @@ void menu_fat32_init(const char* name_p, struct menu_info_t *menu_info)
 
     menu_info->top = 0;
     menu_info->current_option = 0;
-
     menu_info->ops = &menu_fat32_ops;
 }
 
@@ -104,6 +168,76 @@ static void menu_fat32_loop_end(struct menu_info_t *menu_info)
 {
     fat32_close_file();
 }
+
+
+//// EEPROM menu functions
+
+static void menu_eeprom_find_entry(struct menu_info_t *menu_info, uint8_t num);
+static void menu_eeprom_print_next_entry(struct menu_info_t *menu_info);
+static void menu_eeprom_loop_begin(struct menu_info_t *menu_info);
+static void menu_eeprom_loop_end(struct menu_info_t *menu_info);
+
+const struct menu_ops_t menu_eeprom_ops = {
+    .find_entry = menu_eeprom_find_entry,
+    .print_next_entry = menu_eeprom_print_next_entry,
+    .loop_begin = menu_eeprom_loop_begin,
+    .loop_end = menu_eeprom_loop_end
+};
+
+static uint8_t *menu_eeprom_ptr;
+
+void menu_eeprom_init(struct menu_info_t *menu_info)
+{
+
+    uint8_t i;
+
+    for(i = 0; i < 128; i++)
+    {
+        uint8_t c = 0xFF;
+
+        for(uint8_t j = 0; j < 8; j++)
+        {
+            c &= eeprom_read_byte((const uint8_t*) (8*i + j));
+        }
+
+        if(c == 0xFF)
+        {
+            break;
+        }
+    }
+
+    menu_info->num_items = i;
+
+    menu_eeprom_ptr = 0;
+    menu_info->top = 0;
+    menu_info->current_option = 0;
+    menu_info->ops = &menu_eeprom_ops;
+}
+
+static void menu_eeprom_find_entry(struct menu_info_t *menu_info, uint8_t num)
+{
+    menu_eeprom_ptr = (void*) (8 * num);
+}
+
+static void menu_eeprom_print_next_entry(struct menu_info_t *menu_info)
+{
+    for(uint8_t i = 0; i < 8; i++)
+    {
+        char c = eeprom_read_byte(menu_eeprom_ptr++);
+        ssd1306_text_putc(c);
+    }
+}
+
+static void menu_eeprom_loop_begin(struct menu_info_t *menu_info)
+{
+}
+
+static void menu_eeprom_loop_end(struct menu_info_t *menu_info)
+{
+}
+
+
+
 
 //// Generic menu functions
 
