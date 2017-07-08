@@ -18,7 +18,7 @@ PART=$(MCU)
 BAUD=115200
 PROTOCOL=stk500v1
 PART=$(MCU)
-AVRDUDE=avrdude -q
+AVRDUDE=avrdude
 
 RM=rm -f
 
