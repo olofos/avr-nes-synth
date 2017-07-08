@@ -5,6 +5,11 @@
 
 #include "../common-config.h"
 
+#define MAJOR_VERSION 0
+#define MINOR_VERSION 1
+#define COPYRIGHT_YEAR "2016-2017"
+#define AUTHOR "OOS"
+
 #define BAUD 19200UL
 #define SCL_CLOCK  100000UL
 
