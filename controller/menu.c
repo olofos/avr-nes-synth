@@ -13,16 +13,39 @@
 #define MENU_FORW 0x04
 #define MENU_BACK 0x08
 
-void menu_init(const char* name, struct menu_info_t *menu_info)
+static const uint8_t PROGMEM menu_propmt[] = { 0x00, 0x1C, 0x3E, 0x3E, 0x3E, 0x1C, 0x00, 0x00 };
+
+struct menu_ops_t
 {
-    for(uint8_t i = 0; i < 8; i++)
-    {
-        menu_info->name[i] = name[i];
-    }
-    menu_info->name[8] = 0;
-    
+    void (*find_entry)(struct menu_info_t *menu_info, uint8_t num);
+    void (*print_next_entry)(struct menu_info_t *menu_info);
+    void (*loop_begin)(struct menu_info_t *menu_info);
+    void (*loop_end)(struct menu_info_t *menu_info);
+};
+
+static void menu_fat32_find_entry(struct menu_info_t *menu_info, uint8_t num);
+static void menu_fat32_print_next_entry(struct menu_info_t *menu_info);
+static void menu_fat32_loop_begin(struct menu_info_t *menu_info);
+static void menu_fat32_loop_end(struct menu_info_t *menu_info);
+
+const struct menu_ops_t menu_fat32_ops = {
+    .find_entry = menu_fat32_find_entry,
+    .print_next_entry = menu_fat32_print_next_entry,
+    .loop_begin = menu_fat32_loop_begin,
+    .loop_end = menu_fat32_loop_end
+};
+
+//// FAT32 menu functions
+
+void menu_fat32_init(const char* name_p, struct menu_info_t *menu_info)
+{
+    menu_info->data = (void *)name_p;
+
+    char filename[8];
+    strncpy_P(filename, menu_info->data, 8);
+
     fat32_open_root_dir();
-    fat32_open_file(menu_info->name, MENU_EXT);
+    fat32_open_file(filename, MENU_EXT);
     log_puts("Reading menu\n");
     
     fat32_seek(0);
@@ -40,21 +63,53 @@ void menu_init(const char* name, struct menu_info_t *menu_info)
 
     menu_info->top = 0;
     menu_info->current_option = 0;
+
+    menu_info->ops = &menu_fat32_ops;
 }
 
-static const uint8_t PROGMEM menu_propmt[] = { 0x00, 0x1C, 0x3E, 0x3E, 0x3E, 0x1C, 0x00, 0x00 };
-
-void menu_redraw(struct menu_info_t *menu_info)
+static void menu_fat32_find_entry(struct menu_info_t *menu_info, uint8_t num)
 {
     fat32_seek(0);
 
-//    fat32_read(0, 3); // Skip num cat + new line
     fat32_skip_until('\n');        
 
     for(uint8_t i = 0; i < menu_info->top; i++)
     {
         fat32_skip_until('\n');
     }
+}
+
+static void menu_fat32_print_next_entry(struct menu_info_t *menu_info)
+{
+    char c;
+    for(uint8_t j = 0; j < 20; j++)
+    {
+        fat32_read(&c, 1);
+        ssd1306_text_putc(c);
+    }
+    fat32_skip_until('\n');
+}
+
+static void menu_fat32_loop_begin(struct menu_info_t *menu_info)
+{
+    fat32_open_root_dir();
+
+    char filename[8];
+    strncpy_P(filename, menu_info->data, 8);
+
+    fat32_open_file(filename, MENU_EXT);
+}
+
+static void menu_fat32_loop_end(struct menu_info_t *menu_info)
+{
+    fat32_close_file();
+}
+
+//// Generic menu functions
+
+void menu_redraw(struct menu_info_t *menu_info)
+{
+    menu_info->ops->find_entry(menu_info, menu_info->top);
 
     for(uint8_t i = 0; i < MENU_HEIGHT; i++)
     {
@@ -73,13 +128,7 @@ void menu_redraw(struct menu_info_t *menu_info)
 
         if(i < menu_info->num_items)
         {
-            char c;
-            for(uint8_t j = 0; j < 20; j++)
-            {
-                fat32_read(&c, 1);
-                ssd1306_text_putc(c);
-            }
-            fat32_skip_until('\n');
+            menu_info->ops->print_next_entry(menu_info);
         } else {
             for(uint8_t j = 0; j < 20; j++)
             {
@@ -136,14 +185,12 @@ void menu_next(struct menu_info_t *menu_info)
         menu_info->top++;
     }
 }
-           
 
 uint8_t menu_loop(struct menu_info_t *menu_info)
 {
     ssd1306_clear();
 
-    fat32_open_root_dir();
-    fat32_open_file(menu_info->name, MENU_EXT);
+    menu_info->ops->loop_begin(menu_info);
     
     menu_redraw(menu_info);
 
@@ -177,7 +224,7 @@ uint8_t menu_loop(struct menu_info_t *menu_info)
         }    
     }
 
-    fat32_close_file();
+    menu_info->ops->loop_end(menu_info);
 
     return res;
 }

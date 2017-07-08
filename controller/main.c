@@ -23,6 +23,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h> 
 
 #include <stdlib.h>
 
@@ -37,7 +38,6 @@
 #include "io-bridge.h"
 #include "menu.h"
 #include "cbuf.h"
-
 
 #define reg_address_LEN 128
 #define reg_data_LEN 128
@@ -100,6 +100,19 @@ void song_read_data();
 #define SONG_STOP 0x01
 #define SONG_NEXT 0x02
 #define SONG_PREV 0x04
+
+////////////////////////////////////////////////////////////////////////////////
+
+#define XSTR(s) STR(s)
+#define STR(s) #s
+
+static const char PROGMEM title_str[] = "NESSynth " XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION);
+static const uint8_t PROGMEM copyright_c[] = { 0x3C, 0x42, 0x99, 0xA5, 0xA5, 0x81, 0x42, 0x3C };
+static const char PROGMEM copyright_year[] = COPYRIGHT_YEAR;
+static const char PROGMEM copyright_author[] = AUTHOR;
+
+static const char PROGMEM menu_name_main[8] = "MAIN";
+static const char PROGMEM menu_name_cat[8] = "CAT";
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -532,14 +545,6 @@ void category_play(uint8_t choice)
     }
 }
 
-#define XSTR(s) STR(s)
-#define STR(s) #s
-
-static const char PROGMEM title_str[] = "NESSynth " XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION);
-static const uint8_t PROGMEM copyright_c[] = { 0x3C, 0x42, 0x99, 0xA5, 0xA5, 0x81, 0x42, 0x3C };
-static const char PROGMEM copyright_year[] = COPYRIGHT_YEAR;
-static const char PROGMEM copyright_author[] = AUTHOR;
-
 void about_show()
 {
     ssd1306_clear();
@@ -592,13 +597,11 @@ int main()
 
     reset_channels();
 
-//    uint8_t choice = 0;
-
     struct menu_info_t main_menu_info;
     struct menu_info_t game_menu_info;
 
-    menu_init("MAIN", &main_menu_info);
-    menu_init("CAT", &game_menu_info);
+    menu_fat32_init(menu_name_main, &main_menu_info);
+    menu_fat32_init(menu_name_cat, &game_menu_info);
 
     for(;;)
     {
