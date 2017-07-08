@@ -106,13 +106,43 @@ void song_read_data();
 #define XSTR(s) STR(s)
 #define STR(s) #s
 
-static const char PROGMEM title_str[] = "NESSynth " XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION);
-static const uint8_t PROGMEM copyright_c[] = { 0x3C, 0x42, 0x99, 0xA5, 0xA5, 0x81, 0x42, 0x3C };
-static const char PROGMEM copyright_year[] = COPYRIGHT_YEAR;
-static const char PROGMEM copyright_author[] = AUTHOR;
+static const char title_str[] PROGMEM = "NESSynth " XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION);
+static const uint8_t copyright_c[] PROGMEM = { 0x3C, 0x42, 0x99, 0xA5, 0xA5, 0x81, 0x42, 0x3C };
+static const char copyright[] PROGMEM = COPYRIGHT_YEAR " " AUTHOR;
 
-static const char PROGMEM menu_name_main[8] = "MAIN";
-static const char PROGMEM menu_name_cat[8] = "CAT";
+static const char menu_name_cat[8] PROGMEM = "CAT";
+
+static const char menu_main_entry_0[] PROGMEM = "Songs sorted by game";
+static const char menu_main_entry_1[] PROGMEM = "Play playlist";
+static const char menu_main_entry_2[] PROGMEM = "Edit playlist";
+static const char menu_main_entry_3[] PROGMEM = "About";
+
+#define MENU_MAIN_SONGS_SORTED_BY_GAME 0
+#define MENU_MAIN_PLAY_PLAYLIST 1
+#define MENU_MAIN_EDIT_PLAYLIST 2
+#define MENU_MAIN_ABOUT 3
+
+static const char* const menu_main_entries[] PROGMEM = {
+    menu_main_entry_0,
+    menu_main_entry_1,
+    menu_main_entry_2,
+    menu_main_entry_3
+};
+
+static const char menu_playlist_edit_entry_0[] PROGMEM = "Add Track";
+static const char menu_playlist_edit_entry_1[] PROGMEM = "Delete Track";
+static const char menu_playlist_edit_entry_2[] PROGMEM = "Reorder Tracks";
+
+#define MENU_PLAYLIST_EDIT_ADD_TRACK 0
+#define MENU_PLAYLIST_EDIT_DELETE_TRACK 1
+#define MENU_PLAYLIST_EDIT_REORDER_TRACKS 2
+
+static const char* const menu_playlist_edit_entries[] PROGMEM = {
+    menu_playlist_edit_entry_0,
+    menu_playlist_edit_entry_1,
+    menu_playlist_edit_entry_2
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -599,9 +629,13 @@ int main()
 
     struct menu_info_t main_menu_info;
     struct menu_info_t game_menu_info;
+    struct menu_info_t playlist_menu_info;
+    struct menu_info_t playlist_edit_menu_info;
 
-    menu_fat32_init(menu_name_main, &main_menu_info);
+    menu_pgm_init(menu_main_entries, sizeof(menu_main_entries)/sizeof(menu_main_entries[0]), &main_menu_info);
+    menu_pgm_init(menu_playlist_edit_entries, sizeof(menu_playlist_edit_entries)/sizeof(menu_playlist_edit_entries[0]), &playlist_edit_menu_info);
     menu_fat32_init(menu_name_cat, &game_menu_info);
+    menu_eeprom_init(&playlist_menu_info);
 
     _delay_ms(1125);
     reset_channels();
@@ -614,23 +648,145 @@ int main()
 
         switch(res)
         {
-        case 0: // Songs in order
+        case MENU_MAIN_SONGS_SORTED_BY_GAME:
             for(;;)
             {
                 res = menu_loop(&game_menu_info);
                 if(res & MENU_BACK_FLAG)
                     break;
-                
+
                 category_play(res);
             }
             break;
 
-        case 3: // About
+        case MENU_MAIN_PLAY_PLAYLIST:
+            for(;;)
+            {
+                res = menu_loop(&playlist_menu_info);
+                if(res & MENU_BACK_FLAG)
+                    break;
+
+                char filename[8];
+                eeprom_read_block(filename, (void*)(res*8), 8);
+
+                res = song_play(filename);
+
+            }
+            break;
+
+        case MENU_MAIN_EDIT_PLAYLIST:
+            for(;;)
+            {
+                res = menu_loop(&playlist_edit_menu_info);
+                if(res & MENU_BACK_FLAG)
+                    break;
+
+                switch(res)
+                {
+                case MENU_PLAYLIST_EDIT_ADD_TRACK:
+                    for(;;)
+                    {
+                        res = menu_loop(&game_menu_info);
+                        if(res & MENU_BACK_FLAG)
+                            break;
+
+                        char filename[8];
+                        uint8_t len;
+
+                        category_read_info(res, filename, &len);
+
+                        uint8_t track = 1;
+
+                        ssd1306_clear();
+                        ssd1306_text_start(0,0);
+                        for(uint8_t i = 0; i < 8; i++)
+                        {
+                            ssd1306_text_putc(filename[i]);
+                        }
+                        ssd1306_text_end();
+
+                        int8_t done = 0;
+
+                        while(!done)
+                        {
+                            char tens = '0' + track / 10;
+                            char ones = '0' + track % 10;
+
+                            ssd1306_putc(tens, 6*6,0);
+                            ssd1306_putc(ones, 7*6,0);
+
+                            uint8_t input;
+                            while(!(input = get_input()))
+                                ;
+
+                            switch(input)
+                            {
+                            case BUTTON_PRESS_UP:
+                            case BUTTON_HOLD_UP:
+                                if(track > 1)
+                                    track--;
+                                break;
+
+                            case BUTTON_PRESS_DOWN:
+                            case BUTTON_HOLD_DOWN:
+                                if(track < len)
+                                    track++;
+                                break;
+
+                            case BUTTON_PRESS_RIGHT:
+                                done = 1;
+                                break;
+
+                            case BUTTON_PRESS_LEFT:
+                                done = -1;
+                                break;
+
+                            }
+                        }
+
+                        if(done > 0) // Add track
+                        {
+                            filename[6] = '0' + track / 10;
+                            filename[7] = '0' + track % 10;
+                            if(playlist_menu_info.num_items < 128)
+                            {
+                                eeprom_write_block(filename, (void*)(8 * playlist_menu_info.num_items), 8);
+                                playlist_menu_info.num_items++;
+                            }
+                        }
+                    }
+                    break;
+
+
+                case MENU_PLAYLIST_EDIT_DELETE_TRACK:
+                    for(;;)
+                    {
+                        res = menu_loop(&playlist_menu_info);
+                        if(res & MENU_BACK_FLAG)
+                            break;
+
+                        for(uint8_t i = res; i < playlist_menu_info.num_items; i++)
+                        {
+                            uint8_t s[8];
+                            eeprom_read_block(s,(void*)((i+1)*8),8);
+                            eeprom_update_block(s,(void*)(i*8),8);
+                        }
+
+                        playlist_menu_info.num_items--;
+                    }
+                    break;
+
+                case MENU_PLAYLIST_EDIT_REORDER_TRACKS:
+                    break;
+                }
+            }
+            break;
+
+        case MENU_MAIN_ABOUT:
             about_show();
             break;
 
-        case 1: // Play playlist
-        case 2: // Edit playlist
+
         default:
             ssd1306_splash();
             _delay_ms(500);
