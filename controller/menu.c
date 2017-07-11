@@ -70,7 +70,7 @@ static void menu_pgm_print_next_entry(struct menu_info_t *menu_info)
         i++;
     }
 
-    while(i < 20)
+    while(i < SSD1306_LINE_WIDTH-1)
     {
         ssd1306_text_putc(' ');
         i++;
@@ -146,7 +146,7 @@ static void menu_fat32_find_entry(struct menu_info_t *menu_info, uint8_t num)
 static void menu_fat32_print_next_entry(struct menu_info_t *menu_info)
 {
     char c;
-    for(uint8_t j = 0; j < 20; j++)
+    for(uint8_t j = 0; j < SSD1306_LINE_WIDTH-1; j++)
     {
         fat32_read(&c, 1);
         ssd1306_text_putc(c);
@@ -264,7 +264,7 @@ void menu_redraw(struct menu_info_t *menu_info)
         {
             menu_info->ops->print_next_entry(menu_info);
         } else {
-            for(uint8_t j = 0; j < 20; j++)
+            for(uint8_t j = 0; j < SSD1306_LINE_WIDTH-1; j++)
             {
                 ssd1306_text_putc(' ');
             }          
@@ -310,7 +310,7 @@ void menu_prev(struct menu_info_t *menu_info)
 
 void menu_next(struct menu_info_t *menu_info)
 {
-    if(menu_info->current_option < menu_info->num_items-1)
+    if(menu_info->current_option < menu_info->num_items - 1)
     {
         menu_info->current_option++;
     }
@@ -323,6 +323,12 @@ void menu_next(struct menu_info_t *menu_info)
 uint8_t menu_loop(struct menu_info_t *menu_info)
 {
     ssd1306_clear();
+
+    if(menu_info->current_option >= menu_info->num_items)
+    {
+        menu_info->current_option = menu_info->num_items - 1;
+    }
+
 
     menu_info->ops->loop_begin(menu_info);
     
