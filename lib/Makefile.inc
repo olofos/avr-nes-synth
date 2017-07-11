@@ -1,5 +1,5 @@
 CC=avr-gcc
-CFLAGS+=-Wall -Werror -Os -DF_CPU=$(F_CPU) -mmcu=$(MCU) -std=gnu11 -I. -I$(LIBDIR) -gdwarf-2 -fverbose-asm -fshort-enums 
+CFLAGS+=-Wall -Werror -Wno-error=unused-function -Wno-error=unused-variable -Os -DF_CPU=$(F_CPU) -mmcu=$(MCU) -std=gnu11 -I. -I$(LIBDIR) -gdwarf-2 -fverbose-asm -fshort-enums
 LDFLAGS+=-Wall -Os -DF_CPU=$(F_CPU) -mmcu=$(MCU) -std=gnu11 -I. -I$(LIBDIR) -gdwarf-2 -fverbose-asm -fshort-enums
 
 #CFLAGS+=-ffunction-sections -fdata-sections
