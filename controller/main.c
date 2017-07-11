@@ -513,7 +513,7 @@ void category_play(uint8_t choice)
     ssd1306_clear();
     ssd1306_puts("Playing:",0,0);
 
-    char filename[8];
+    char filename[9];
     uint8_t len;
 
     category_read_info(choice, filename, &len);
@@ -525,6 +525,7 @@ void category_play(uint8_t choice)
     {
         filename[6] = '0' + (num / 10);
         filename[7] = '0' + (num % 10);
+        filename[8] = 0;
 
         char track[] = "Track 67/9A";
 
@@ -863,14 +864,14 @@ int main()
 
 static uint8_t frame_counter;
 
-ISR(TIMER0_COMPA_vect) // Frame clock
+ISR(TIMER0_COMPA_vect) // Frame clock fires at 240 Hz
 {
     uint8_t cnt = frame_counter + 1;
     set_pin(PIN_FCLK, cnt & 1);
 
     if(!(cnt & 0x03))
     {
-        // Next frame
+        // Push out new data at 60 Hz
         if(!song_done)
         {
             timer2_start();
@@ -880,7 +881,7 @@ ISR(TIMER0_COMPA_vect) // Frame clock
     frame_counter = cnt;
 }
 
-ISR(TIMER1_COMPA_vect) // Push out new data
+ISR(TIMER1_COMPA_vect)
 {
     global_timer++;
 }
@@ -891,18 +892,18 @@ ISR(TIMER2_COMPA_vect) // Push out new data
 
     if(cbuf_empty(reg_data))
     {
-        timer2_stop();
+        timer2_stop(); // We are done for now
     } else {
         if(!(n++ & 0x01))
         {
             uint8_t address = cbuf_pop(reg_address);
-            if(address == 0xFF)
+            if(address == 0xFF) // End song
             {
                 timer2_stop();
                 cbuf_pop(reg_data);
                 n++;
                 song_done = 1;
-            } else if(address == 0xF1) {
+            } else if(address == 0xF1) { // End frame
                 timer2_stop();
                 cbuf_pop(reg_data);
                 n++;
