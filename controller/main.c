@@ -115,18 +115,21 @@ static const char menu_name_cat[8] PROGMEM = "CAT";
 static const char menu_main_entry_0[] PROGMEM = "Songs sorted by game";
 static const char menu_main_entry_1[] PROGMEM = "Play playlist";
 static const char menu_main_entry_2[] PROGMEM = "Edit playlist";
-static const char menu_main_entry_3[] PROGMEM = "About";
+static const char menu_main_entry_3[] PROGMEM = "Log";
+static const char menu_main_entry_4[] PROGMEM = "About";
 
 #define MENU_MAIN_SONGS_SORTED_BY_GAME 0
 #define MENU_MAIN_PLAY_PLAYLIST 1
 #define MENU_MAIN_EDIT_PLAYLIST 2
-#define MENU_MAIN_ABOUT 3
+#define MENU_MAIN_LOG 3
+#define MENU_MAIN_ABOUT 4
 
 static const char* const menu_main_entries[] PROGMEM = {
     menu_main_entry_0,
     menu_main_entry_1,
     menu_main_entry_2,
-    menu_main_entry_3
+    menu_main_entry_3,
+    menu_main_entry_4,
 };
 
 static const char menu_playlist_edit_entry_0[] PROGMEM = "Add Track";
@@ -212,7 +215,7 @@ void i2c_scan()
             
 	    log_puts("Device found at 0x");
             log_put_uint8_hex(address);
-	    log_puts("\n");
+	    log_nl();
 
 	    num++;
 	}
@@ -591,7 +594,67 @@ void about_show()
     while(!get_input())
         ;
 
-    ssd1306_clear();
+}
+
+extern char log_buf[LOG_BUF_LEN];
+
+void log_show()
+{
+    uint8_t num_lines = log_buf_count_lines();
+    uint8_t first_line = num_lines - 8;
+    uint8_t done = 0;
+
+    // TODO: Don't redraw everything each time. Instead use the scrolling capabilities of SSD1306
+
+    while(!done)
+    {
+        ssd1306_clear();
+
+        for(uint8_t i = 0; i < 8; i++)
+        {
+
+            uint8_t pos = log_buf_line_pos(first_line + i);
+
+            for(uint8_t j = 0; j < LOG_BUF_LINE_WIDTH; j++)
+            {
+                char c = log_buf[(uint8_t)(pos + j)];
+                if(c == '\n')
+                    break;
+
+                ssd1306_putc(c, 6*j, i);
+            }
+        }
+
+        uint8_t input;
+
+        while(!(input = get_input()))
+            ;
+
+        switch(input)
+        {
+        case BUTTON_PRESS_LEFT:
+        case BUTTON_PRESS_RIGHT:
+            done = 1;
+        break;
+
+        case BUTTON_PRESS_UP:
+        case BUTTON_HOLD_UP:
+        if(first_line > 0)
+        {
+            first_line--;
+        }
+        break;
+
+        case BUTTON_PRESS_DOWN:
+        case BUTTON_HOLD_DOWN:
+        if(first_line < num_lines - 8)
+        {
+            first_line++;
+        }
+        break;
+
+        }
+    }
 }
 
 int main()
@@ -609,7 +672,7 @@ int main()
     ssd1306_init();
     ssd1306_splash();
 
-    log_init(LOG_I2C);
+    log_init(LOG_I2C|LOG_BUF);
     spi_init();
 
     i2c_scan();
@@ -780,6 +843,10 @@ int main()
                     break;
                 }
             }
+            break;
+
+        case MENU_MAIN_LOG:
+            log_show();
             break;
 
         case MENU_MAIN_ABOUT:

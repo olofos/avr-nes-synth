@@ -47,7 +47,7 @@ void log_i2c_puts_P(const char *str)
     i2c_write_byte(0xFF);
 
     uint8_t c;
-    
+
     while((c = pgm_read_byte(str++)))
     {
         i2c_write_byte(c);
@@ -58,6 +58,93 @@ void log_i2c_puts_P(const char *str)
 
 #endif
 
+#ifdef LOG_USE_BUF
+
+char log_buf[LOG_BUF_LEN];
+uint8_t log_buf_pos;
+uint8_t log_buf_line_len;
+
+void log_buf_init()
+{
+    log_buf_pos = 0;
+    log_buf_line_len = 0;
+}
+
+void log_buf_putc(const char c)
+{
+    if(c)
+    {
+        log_buf[log_buf_pos++] = c;
+
+        if(c == '\n')
+        {
+            log_buf_line_len = 0;
+        } else {
+            log_buf_line_len++;
+            if(log_buf_line_len >= LOG_BUF_LINE_WIDTH)
+            {
+                log_buf[log_buf_pos++] = '\n';
+                log_buf_line_len = 0;
+            }
+        }
+    }
+}
+
+uint8_t log_buf_count_lines()
+{
+    uint8_t pos = log_buf_pos;
+    uint8_t len = LOG_BUF_LEN-1;
+    uint8_t n = 1;
+
+    while(!log_buf[pos])
+    {
+        len--;
+        pos++;
+    }
+
+    for(uint8_t i = 0; i < len; i++)
+    {
+        if(log_buf[pos] == '\n')
+        {
+            n++;
+        }
+        pos++;
+    }
+
+    return n;
+}
+
+uint8_t log_buf_line_pos(uint8_t n)
+{
+    uint8_t pos = log_buf_pos;
+    uint8_t len = LOG_BUF_LEN-1;
+    uint8_t m = 0;
+
+    while(!log_buf[pos])
+    {
+        pos++;
+        len--;
+    }
+
+    for(uint8_t i = 0; i < len; i++)
+    {
+        if(n == m)
+        {
+            break;
+        }
+
+        if(log_buf[pos] == '\n')
+        {
+            m++;
+        }
+        pos++;
+    }
+
+    return pos;
+}
+
+
+#endif
 
 static uint8_t log_mask;
 
@@ -69,7 +156,7 @@ void log_init(uint8_t mask)
 void log_enable(uint8_t mask)
 {
     log_mask |= mask;
-    
+
 #ifdef LOG_USE_UART
     if(mask & LOG_UART)
     {
@@ -81,12 +168,18 @@ void log_enable(uint8_t mask)
     }
 
 #endif
-    
+
 #ifdef LOG_USE_SSD1306
     if(mask & LOG_SSD1306)
     {
 	ssd1306_console_init();
     }
+
+    if(mask & LOG_SSD1306)
+    {
+	log_puts("Enabling log to SSD1306\n");
+    }
+
 #endif
 
 #ifdef LOG_USE_I2C
@@ -97,6 +190,18 @@ void log_enable(uint8_t mask)
     if(mask & LOG_I2C)
     {
 	log_puts("Enabling log to I2C\n");
+    }
+#endif
+
+#ifdef LOG_USE_BUF
+    if(mask & LOG_BUF)
+    {
+        log_buf_init();
+    }
+
+    if(mask & LOG_BUF)
+    {
+        log_puts("Enabling log to circular buffer\n");
     }
 #endif
 }
@@ -121,6 +226,13 @@ void log_disable(uint8_t mask)
     if(mask & LOG_I2C)
     {
 	log_puts("Disabling log to I2C\n");
+    }
+#endif
+
+#ifdef LOG_USE_BUF
+    if(mask & LOG_BUF)
+    {
+        log_puts("Disabling log to circular buffer\n");
     }
 #endif
 
@@ -149,6 +261,13 @@ void log_putc(const char c)
         log_i2c_putc(c);
     }
 #endif
+
+#ifdef LOG_USE_BUF
+    if(log_mask & LOG_BUF)
+    {
+        log_buf_putc(c);
+    }
+#endif
 }
 
 void log_puts(const char* str)
@@ -171,6 +290,16 @@ void log_puts(const char* str)
     if(log_mask & LOG_I2C)
     {
         log_i2c_puts(str);
+    }
+#endif
+
+#ifdef LOG_USE_BUF
+    if(log_mask & LOG_BUF)
+    {
+        for(uint8_t i = 0; str[i]; i++)
+        {
+            log_buf_putc(str[i]);
+        }
     }
 #endif
 }
@@ -197,6 +326,18 @@ void log_puts_P(const char* str)
         log_i2c_puts_P(str);
     }
 #endif
+
+#ifdef LOG_USE_BUF
+    if(log_mask & LOG_BUF)
+    {
+        char c;
+        while((c = pgm_read_byte(str++)))
+        {
+            log_buf_putc(c);
+        }
+    }
+#endif
+
 }
 
 
@@ -218,7 +359,7 @@ void log_printf(const char *fmt, ... )
 #endif
 
 void log_put_uint8_hex(uint8_t val)
-{    
+{
     if(val < 0x10)
     {
         log_puts("0");
@@ -260,7 +401,7 @@ void log_put_uint8(uint8_t val)
 void log_put_uint16(uint16_t val)
 {
     char buf[6];
-    
+
     if(val < 10000)
       log_putc(' ');
     if(val < 1000)
