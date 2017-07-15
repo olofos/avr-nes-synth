@@ -8,3 +8,6 @@
 *.a
 *.bak
 *.kicad_pcb-bak
+doc/*.log
+doc/*.aux
+doc/block-diagram.pdf
