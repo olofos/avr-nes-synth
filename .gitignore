@@ -6,3 +6,5 @@
 */.deps
 *~
 *.a
+*.bak
+*.kicad_pcb-bak
