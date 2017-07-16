@@ -24,11 +24,7 @@
    Each channel emulates one of the channels on the NES APU. They react to writes to the corresponding registers appearing on the data bus and at each tick of the frame clock they clock the relevant output units in order to create effects such as sweep and envelope decay.
 
    - Square wave channels
-     The two square wave channels output a square wave with a duty cycle that can be set to 12.5%, 25%, 50% or 75% (the last setting actually gives a 25% duty cycle).
-     + Volume
-     + Envelope decay
-     + Sweep
-     + Length counter
+     The two square wave channels output a square wave with a duty cycle that can be set to 12.5%, 25%, 50% or 75%. The square wave channel has a 16-level volume, which can be modulated using envelope decay, a sweep function to modulate the frequency, as well as a length counter.
 
    - Triangle wave
      + Length counter
