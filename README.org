@@ -1,0 +1,63 @@
+* NESSynth
+
+  /NESSynth/ is an overcomplicated machine that plays NES music. /NESSynth/ currently supports four of the five channels present in the NES audio processing unit (APU):
+  - Two pulse, or square wave, channels
+  - A triangle wave
+  - A random noise channel
+
+  There is currently no support for a DCM channel.
+
+** Hardware overview
+
+  Each channel is processed separately by firmware running on an 8-bit ATMega88p microcontroller. An ATMega328p microcontroller acts as a central controller, reading track information from an SD card and writing the corresponding instructions to the channels. The controller is furthermore connected to an 128x64 pixel SSD1306 OLED display on which information about the current track, as well as a simple menu system is displayed. User input is processed through an additional ATMega88p microcontroller which acts like an io-bridge, communicating with the main controller over I2C. The io-bridge is connected to four user buttons, four LEDs an a UART header for debugging.
+
+  The following block diagram gives an overview of the architecture of /NESSynth/.
+
+  #+HTML: <a href="doc/block-diagram.png"><img src="doc/block-diagram.png" width=800px></a>
+
+** Channels
+
+   Each channel emulates one of the channels on the NES APU. They react to writes to the corresponding registers appearing on the data bus and at each tick of the frame clock they clock the relevant output units in order to create effects such as sweep and envelope decay.
+
+   - Square wave channels
+     + Duty cycle: 12.5%, 25%, 50%
+     + Volume
+     + Envelope decay
+     + Sweep
+     + Length counter
+
+   - Triangle wave
+     + Length counter
+     + Linear counter
+
+   - Noise channel
+     + Envelope decay
+     + Length counter
+     + Linear feedback mode
+
+   | CONF1      | CONF0      | Channel        |
+   |------------+------------+----------------|
+   | Not fitted | Not fitted | Square wave #1 |
+   | Not fitted | Fitted     | Square wave #2 |
+   | Fitted     | Not fitted | Triangle wave  |
+   | Fitted     | Fitted     | Noise          |
+
+** Song data
+    
+   The song data is read from an SD card where it is stored in a custom binary format. The data is obtained from NSF files using a custom version of the [[http://nosefart.sourceforge.net/][Nosefart]] NSF player.
+
+** Song file format
+   The binary file format is very simple. It consists of a number of two-byte records, with the first byte indicating an address, and the second byte the corresponding values. There are three special records
+
+   | Address | Value | Meaning      |
+   |---------+-------+--------------|
+   |    0xF1 |  0xF1 | End of frame |
+   |    0xFF |  0xFF | End of file  |
+   |    0xFE |  0xFE | Loop         |
+
+   The loop record is followed by a 16-bit byte address indicating which byte in the file to loop back to.
+
+** Acknowledgements
+   The circular buffer implementation in cbuf.h is inspired by the one in [[https://github.com/dhylands/TimerUART][TimerUART]].
+
+   The 3d rendering of the boards uses 3d models from [[https://github.com/ab2tech/KiCad][ab2tech]], which are licensed under [[http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US][Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License]], and from [[https://github.com/JorgeAparicio/libKiCad][libKiCad]], which are licensed under [[lib/3d_models/walter/license.txt][Creative Commons license v3.0, Attribution-Share Alike]].
