@@ -32,7 +32,7 @@ void log_put_int16(int8_t val);
 
 void log_put_ascii(uint8_t val);
 
-inline void log_nl() { log_putc('\n'); };
+inline void log_nl() { log_putc('\n'); }
 
 #ifdef LOG_USE_BUF
 uint8_t log_buf_count_lines();
