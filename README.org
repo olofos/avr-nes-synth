@@ -9,18 +9,22 @@
 
 ** Hardware overview
 
-  Each channel is processed separately by firmware running on an 8-bit ATMega88p microcontroller. An ATMega328p microcontroller acts as a central controller, reading track information from an SD card and writing the corresponding instructions to the channels. The controller is furthermore connected to an 128x64 pixel SSD1306 OLED display on which information about the current track, as well as a simple menu system is displayed. User input is processed through an additional ATMega88p microcontroller which acts like an io-bridge, communicating with the main controller over I2C. The io-bridge is connected to four user buttons, four LEDs an a UART header for debugging.
+  Each *channel* is processed separately by firmware running on an 8-bit ATMega88p microcontroller. An ATMega328p microcontroller acts as a central *controller*, reading track information from an SD card and writing the corresponding instructions to the channels. The controller is furthermore connected to an 128x64 pixel SSD1306 OLED display on which information about the current track, as well as a simple menu system, is displayed. User input is processed through an additional ATMega88p microcontroller which acts like an *io-bridge*, communicating with the main controller over I2C. The io-bridge is connected to four user buttons, four LEDs an a UART header for debugging.
 
   The following block diagram gives an overview of the architecture of /NESSynth/.
 
   #+HTML: <a href="doc/block-diagram.png"><img src="doc/block-diagram.png" width=800px></a>
+
+** 8-bit bus
+
+   The controller communicates with the channels using an *8-bit parallel bus*. Writes to the bus are signalled on the *data clock* line.  A rising clock signals that an address has been written on the bus, and a falling clock signals that a value that is to be written to the register at the previous address has been written on the bus. A new address or value is written every 33us, and the channels have to ensure that the data has been read from the bus within that time frame.
 
 ** Channels
 
    Each channel emulates one of the channels on the NES APU. They react to writes to the corresponding registers appearing on the data bus and at each tick of the frame clock they clock the relevant output units in order to create effects such as sweep and envelope decay.
 
    - Square wave channels
-     + Duty cycle: 12.5%, 25%, 50%
+     The two square wave channels output a square wave with a duty cycle that can be set to 12.5%, 25%, 50% or 75% (the last setting actually gives a 25% duty cycle).
      + Volume
      + Envelope decay
      + Sweep
