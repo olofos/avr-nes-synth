@@ -90,7 +90,7 @@ const uint16_t noise_period_lut[] = {
     0x0ca, 0x0fe, 0x17c, 0x1fc, 0x2fa, 0x3f8, 0x7f2, 0xfe4
 };
 
-const uint8_t duty_tab[] = {2, 4, 8, 2};
+const uint8_t duty_tab[] = {2, 4, 8, 12};
 
 
 #define reg_address_LEN 32
