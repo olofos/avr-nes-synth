@@ -121,5 +121,5 @@
 
    The circular buffer implementation in lib/cbuf.h is inspired by the one in [[https://github.com/dhylands/TimerUART][TimerUART]].
 
-   For 3d rendering of the boards, 3d models from [[https://github.com/ab2tech/KiCad][ab2tech]], which are licensed under [[http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US][Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License]], and from [[https://github.com/JorgeAparicio/libKiCad][libKiCad]], which are licensed under [[lib/3d_models/walter/license.txt][Creative Commons license v3.0, Attribution-Share Alike]], have been used.
-* lib/3d_models/walter/license.txt
+   For 3d rendering of the boards, 3d models from [[https://github.com/ab2tech/KiCad][ab2tech]], which are licensed under [[http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US][Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License]], and from [[https://github.com/JorgeAparicio/libKiCad][libKiCad]], which are licensed under [[hardware/lib/3d_models/walter/license.txt][Creative Commons license v3.0, Attribution-Share Alike]], have been used.
+
