@@ -108,8 +108,8 @@
 
    The loop record is followed by a 16-bit byte address indicating which byte in the file to loop back to.
 
-   In order to construct a data file from an NSF files, a custom version of the [[http://nosefart.sourceforge.net/][Nosefart]] NSF player is used.
-   The custom Nosefart player outputs data in a text file.
+   In order to construct a data file from an NSF files, a player based on a custom version of the [[http://www.slack.net/~ant/libs/audio.html#Game_Music_Emu][Game_Music_Emu 0.5.2]] library is used.
+   The custom NSF player outputs data in a text file.
    This data is then processed through a couple of simple programs which are used to detect loops in the track, and to convert the data into the binary file format described above.
 
 
@@ -117,6 +117,9 @@
 
    The [[https://wiki.nesdev.com/w/index.php/APU][APU pages]] of the [[https://wiki.nesdev.com/][NesDev wiki]] have been invaluable for providing information about the inner workings of the NES APU, as has the [[http://nesdev.com/NESSOUND.txt][NESSOUND]] document by Brad Taylor.
 
+   The NSF player that is used to create binary sound data files is based on the  [[http://www.slack.net/~ant/libs/audio.html#Game_Music_Emu][Game_Music_Emu 0.5.2]] library by Shay Green, which is licensed under the [[https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html][GNU Lesser General Public License, Version 2.1]].
+
    The circular buffer implementation in lib/cbuf.h is inspired by the one in [[https://github.com/dhylands/TimerUART][TimerUART]].
 
    For 3d rendering of the boards, 3d models from [[https://github.com/ab2tech/KiCad][ab2tech]], which are licensed under [[http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US][Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License]], and from [[https://github.com/JorgeAparicio/libKiCad][libKiCad]], which are licensed under [[lib/3d_models/walter/license.txt][Creative Commons license v3.0, Attribution-Share Alike]], have been used.
+* lib/3d_models/walter/license.txt
