@@ -1,0 +1,122 @@
+* NESSynth
+
+  /NESSynth/ is an overcomplicated machine that plays NES music. /NESSynth/ currently supports four of the five channels present in the NES Audio Processing Unit (APU):
+  - Two pulse, or square wave, channels
+  - A triangle wave
+  - A random noise channel
+
+  There is currently no support for a DCM channel.
+
+  /NESSynth/ has a menu system where the user can choose which game soundtrack is to be played.
+  There is furthermore support for a playlist to which individual tracks can be added and played back.
+
+** Hardware overview
+
+  Each *channel* is processed separately by firmware running on an 8-bit ATMega88p microcontroller.
+  An ATMega328p microcontroller acts as a central *controller*, reading track information from an SD card and writing the corresponding instructions to the channels.
+  The controller is furthermore connected to an 128x64 pixel SSD1306 OLED display on which information about the current track, as well as a simple menu system, is displayed.
+  User input is processed through an additional ATMega88p microcontroller which acts like an *io-bridge*, communicating with the main controller over I2C.
+  The io-bridge is connected to four user buttons, four LEDs an a UART header for debugging.
+
+  The following block diagram gives an overview of the architecture of /NESSynth/.
+
+  #+HTML: <a href="doc/block-diagram.png"><img src="doc/block-diagram.png" width=800px></a>
+
+*** 8-bit bus
+
+   The controller communicates with the channels using an *8-bit parallel bus*.
+   Writes to the bus are signalled on the *data clock* line.
+   A rising clock signals that an address has been written on the bus, and a falling clock signals that a value that is to be written to the register at the previous address has been written on the bus.
+   A new address or value is written every 33us, and the channels have to ensure that the data has been read from the bus within that time frame.
+
+*** Frame clock
+
+   In addition to the 8-bit bus, the controller provides the channel with a frame clock, which fires at a constant rate of 240 Hz.
+   The frame clock is used to regularly update the output wave forms by applying the various effects such as the length counters and sweep units.
+
+*** Channels
+
+   Each channel emulates one of the channels on the NES APU.
+   They react to writes to the corresponding registers appearing on the data bus and at each tick of the frame clock they clock the relevant output units in order to create effects such as sweep and envelope decay.
+
+   The channels output sound at a frequency that is obtained by dividing the NTSC APU frequency of 1.789773 MHz by an integer, the /period/.
+   The microcontrollers in the channels are clocked using a crystal with resonant frequency 14.3818 MHz, which is a multiple of the APU frequency.
+
+   The PCBs of the channels have two jumpers, *CONF0* and *CONF1*, which can be used to configure which of the four APU channels the microcontroller is emulating.
+   The possible settings are given in the following table.
+
+   | CONF1      | CONF0      | Channel        |
+   |------------+------------+----------------|
+   | Not fitted | Not fitted | Square wave #1 |
+   | Not fitted | Fitted     | Square wave #2 |
+   | Fitted     | Not fitted | Triangle wave  |
+   | Fitted     | Fitted     | Noise          |
+
+   Each channel has a four bit R2R DAC that is used to construct the outgoing audio wave form.
+
+   - Square wave channels
+
+     The two square wave channels output a square wave with a duty cycle that can be set to 12.5%, 25%, 50% or 75%. The output volume of the square wave channels can be set to one of 16 levels, and can be modulated using the envelope decay unit. The square wave channels further support a sweep function to modulate the output frequency, as well as a length counter.
+
+   - Triangle wave
+
+     The triangle wave channel outputs a 32-step triangle wave of constant volume. For a given period, the frequency of the triangle wave is half of that of a square wave of the same period. The triangle wave channel supports a length counter and a linear counter which both can be used to limit the amount of time a note is played.
+
+   - Noise channel
+
+     The noise channel outputs noise that is generated using a linear feedback shift register. The feedback can be taken from two different taps of the shift registers. The volume of the noise channel can be configured to be constant, with 16 possible output levels, or can be varied over time using the envelope decay unit. The noise channel also supports a length counter.
+
+*** Audio output
+
+    The output of each channel is mixed together and then passed through a low pass filter with corner frequency 16 Hz and a high pass filter with corner frequency 16 kHz.
+    The signal is the amplified using an LM386 audio amplifier before going to an 8 ohm speaker.
+
+** Firmware
+
+   The firmware for /NESSynth/ consists of three main pieces: the firmware for the main controller, the io-bridge and for the channels.
+   The firmware is written using [[http://www.nongnu.org/avr-libc/user-manual/][avr-libc]] and compiled using avr-gcc.
+
+   The controller has a menu system which is displayed on the OLED display.
+   The menu system supports menus stored either on an SD card, in the flash memory of the controller, or in the EEPROM.
+   It allows the user to play all the tracks from a particular game or to create a playlist with up to 128 tracks.
+   The playlist is stored in the EEPROM of the controller.
+
+   When playing a track, the controller reads the song data from the SD card where it is stored in a custom binary format (see below).
+   The song data records the state of the APU registers at 60 Hz, and the controller outputs the data on the 8-bit bus.
+   The song data is split into frames, and the controller plays the frames back at 60 Hz.
+
+   The controller firmware includes a custom SD card and FAT32 drivers.
+   The FAT32 driver does not read the FAT table into memory, which means that it has to search the table while reading data off the SD card.
+   To improve performance when seeking in small files there is a cluster cache where the first few clusters in the currently open file.
+
+   The firmware of the channels simply listens to writes to the registers relevant to the corresponding APU channel and puts out a wave form on the DAC.
+   The channel firmware is heavily interrupt based.
+   In order to improve the performance of the main timer interrupt, which is responsible for actually constructing the audio out signal, the interrupt handler has been written in assembly code.
+   For clarity there is also a C version of the interrupt handler, which can be enabled by removing the ASMINTERRUPT flag in the Makefile of the channel firmware source code.
+
+*** Song file format
+
+   The binary file format is very simple.
+   It consists of a number of two-byte records, with the first byte indicating an address, and the second byte the corresponding values.
+   There are three special records
+
+   | Address | Value | Meaning      |
+   |---------+-------+--------------|
+   |    0xF1 |  0xF1 | End of frame |
+   |    0xFF |  0xFF | End of file  |
+   |    0xFE |  0xFE | Loop         |
+
+   The loop record is followed by a 16-bit byte address indicating which byte in the file to loop back to.
+
+   In order to construct a data file from an NSF files, a custom version of the [[http://nosefart.sourceforge.net/][Nosefart]] NSF player is used.
+   The custom Nosefart player outputs data in a text file.
+   This data is then processed through a couple of simple programs which are used to detect loops in the track, and to convert the data into the binary file format described above.
+
+
+** Acknowledgements
+
+   The [[https://wiki.nesdev.com/w/index.php/APU][APU pages]] of the [[https://wiki.nesdev.com/][NesDev wiki]] have been invaluable for providing information about the inner workings of the NES APU, as has the [[http://nesdev.com/NESSOUND.txt][NESSOUND]] document by Brad Taylor.
+
+   The circular buffer implementation in lib/cbuf.h is inspired by the one in [[https://github.com/dhylands/TimerUART][TimerUART]].
+
+   For 3d rendering of the boards, 3d models from [[https://github.com/ab2tech/KiCad][ab2tech]], which are licensed under [[http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US][Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License]], and from [[https://github.com/JorgeAparicio/libKiCad][libKiCad]], which are licensed under [[lib/3d_models/walter/license.txt][Creative Commons license v3.0, Attribution-Share Alike]], have been used.
