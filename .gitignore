@@ -8,6 +8,14 @@
 *.a
 *.bak
 *.kicad_pcb-bak
+
 doc/*.log
 doc/*.aux
 doc/block-diagram.pdf
+
+scripts/bin/*
+scripts/*.dat
+scripts/*.wav
+scripts/dat_to_bin
+scripts/detect_loops
+scripts/nsf_play
