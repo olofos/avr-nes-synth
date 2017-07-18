@@ -8,6 +8,11 @@
 #include "gme/Nsf_Emu.h"
 #include "Wave_Writer.h"
 
+#include <iostream>
+#include <fstream>
+
+#include "dat_file.h"
+
 void handle_error( const char* str );
 
 void print_usage(char *p)
@@ -106,34 +111,39 @@ int main(int argc, char **argv)
                 }
 	}
 
-        FILE *out = stdout;
-
-        if(filename_out)
-        {
-            out = fopen(filename_out, "w");
-        }
-
         if(wave)
         {
             delete wave;
         }
 
-        // Print out
+		DatFile dat_file;
+		Frame frame;
+
         int prev_time = 0;
         for(r : emu->apu_()->reg_writes)
         {
-            if(r.time - prev_time > 10000)
-                fprintf(out, "0xf1,\t0xf1,\n");
+            if(r.time - prev_time >= 10000) // try to sync with frames in the audio
+            {
+                dat_file.frames.push_back(frame);
+                frame.regs.clear();
+            }
 
             prev_time = r.time;
 
-            fprintf(out, "0x%02x,\t0x%02x,\n", r.address & 0xFF, r.data);
+            frame.regs.push_back(Reg(r.address & 0xFF, r.data));
         }
-        
-        fprintf(out, "0xf1,\t0xf1,\n");
-        fprintf(out, "0xff,\t0xff,\n");
 
-        fclose(out);
+        if(!frame.regs.empty())
+        {
+            dat_file.frames.push_back(frame);
+        }
+
+        if(filename_out)
+        {
+            dat_file.save_ascii(filename_out);
+        } else {
+            dat_file.save_ascii(std::cout);
+        }
 
 	// Cleanup
 	delete emu;
