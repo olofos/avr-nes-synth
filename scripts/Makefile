@@ -31,6 +31,9 @@ nsf_play: $(OBJECTS_nsf_play)
 bin_play: $(OBJECTS_bin_play)
 	g++ $(CXXFLAGS) -o $@ $^
 
+dat_file_test: dat_file.cpp
+	g++ $(CXXFLAGS) -DTEST_DAT_FILE -o $@ $^
+
 %.o: %.cpp
 	g++ $(CXXFLAGS) -c -o $@ $^
 
