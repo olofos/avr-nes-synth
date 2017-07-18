@@ -15,7 +15,10 @@ doc/block-diagram.pdf
 
 scripts/bin/*
 scripts/*.dat
+scripts/*.bin
 scripts/*.wav
 scripts/dat_to_bin
 scripts/detect_loops
 scripts/nsf_play
+scripts/bin_play
+scripts/dat_file_test
