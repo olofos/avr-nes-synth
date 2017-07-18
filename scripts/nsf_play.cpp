@@ -120,12 +120,17 @@ int main(int argc, char **argv)
 		Frame frame;
 
         int prev_time = 0;
+        int frame_time = 0;
         for(r : emu->apu_()->reg_writes)
         {
             if(r.time - prev_time >= 10000) // try to sync with frames in the audio
             {
-                dat_file.frames.push_back(frame);
-                frame.regs.clear();
+                while(r.time - frame_time >= 29830)
+                {
+                    dat_file.frames.push_back(frame);
+                    frame.regs.clear();
+                    frame_time += 29830;
+                }
             }
 
             prev_time = r.time;
