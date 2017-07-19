@@ -10,7 +10,8 @@ enum
     BEGIN_FRAME = 0xf0,
     END_FRAME = 0xf1,
     END_SONG = 0xff,
-    LOOP = 0xfe
+    LOOP_FRAME = 0xfd,
+    LOOP_BYTE = 0xfe
 };
 
 struct Reg
