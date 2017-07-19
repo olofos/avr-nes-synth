@@ -120,27 +120,25 @@ int main(int argc, char **argv)
 		Frame frame;
 
         int prev_time = 0;
-        int frame_time = 0;
+        const int frame_time_const = 29830;
         for(r : emu->apu_()->reg_writes)
         {
             if(r.time - prev_time >= 10000) // try to sync with frames in the audio
             {
-                while(r.time - frame_time >= 29830)
+                dat_file.frames.push_back(frame);
+                frame.regs.clear();
+
+                while(r.time - prev_time >= frame_time_const + 3000) // allow for some extra time
                 {
                     dat_file.frames.push_back(frame);
-                    frame.regs.clear();
-                    frame_time += 29830;
+                    prev_time += frame_time_const;
                 }
+
             }
 
             prev_time = r.time;
 
             frame.regs.push_back(Reg(r.address & 0xFF, r.data));
-        }
-
-        if(!frame.regs.empty())
-        {
-            dat_file.frames.push_back(frame);
         }
 
         if(filename_out)
