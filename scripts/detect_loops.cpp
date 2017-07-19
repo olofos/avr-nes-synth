@@ -1,116 +1,31 @@
-#include <cstdio>
-#include <cstdlib>
-
+#include <iostream>
 #include <vector>
 
-#define BEGIN_FRAME    0xf0
-#define END_FRAME      0xf1
-#define END_SONG       0xff
-#define LOOP           0xfe
-
-
-struct reg_t
-{
-    unsigned address;
-    unsigned value;
-};
-
-bool operator==(const reg_t& reg1, const reg_t& reg2)
-{
-    return (reg1.address == reg2.address) && (reg1.value == reg2.value);
-}
-
-bool operator!=(const reg_t& reg1, const reg_t& reg2)
-{
-    return !(reg1 == reg2);
-}
-
-struct frame_t
-{
-    int num;
-    std::vector<reg_t> regs;
-};
-
-bool operator==(const frame_t& frame1, const frame_t& frame2)
-{
-    return frame1.regs == frame2.regs;    
-}
-
-bool operator!=(const frame_t& frame1, const frame_t& frame2)
-{
-    return frame1.regs != frame2.regs;    
-}
+#include "dat_file.h"
 
 int main(int argc, char *argv[])
 {
-    const char *filename = "out.dat";
+    std::string filename_in = "out.dat";
 
-    const char *out_filename = "out.dat";
+    std::string filename_out = "out.dat";
 
     if(argc > 1)
     {
-        filename = argv[1];
+        filename_in = argv[1];
     }
 
     if(argc > 2)
     {
-        out_filename = argv[2];
-    }
-    
-    FILE *file = std::fopen(filename, "r");
-
-    if(!file)
-    {
-        char str[256];
-        std::snprintf(str, 256, "Error opening '%s'", filename);
-        std::perror(str);
-        std::exit(1);
+        filename_out = argv[2];
     }
 
-    bool song_done = false;
-    int frame_count = 0;
+    DatFile dat_file;
 
-    std::vector<frame_t> frames;
+    dat_file.load_ascii(filename_in);
 
-    while(!song_done)
-    {
-        bool frame_done = false;
+    std::vector<Frame> frames = dat_file.frames;
 
-        frame_t frame;
-        frame.num = frame_count;
-
-        while(!frame_done) {
-            unsigned address;
-            unsigned value;
-
-            if(!std::fscanf(file, "0x%02x,\t0x%02x,\n", &address, &value))
-            {
-                std::perror("Error reading file");
-                std::exit(1);
-            }
-
-            if(address == END_SONG)
-            {
-                frame_done = true;
-                song_done  = true;
-            } else if(address == END_FRAME) {
-                frame_done = true;
-            } else {
-                reg_t reg;
-                reg.address = address;
-                reg.value = value;
-                
-                frame.regs.push_back(reg);
-            }
-        }
-
-        frames.push_back(frame);
-        frame_count++;
-    }
-
-    std::fclose(file);
-
-    std::printf("Read %d frames\n", frame_count);
+    std::cout << "Read " << frames.size() << " frames\n";
 
     int check_len = 8;
 
@@ -118,7 +33,7 @@ int main(int argc, char *argv[])
 
     bool loop_found = false;
 
-    for(int i = 1, j = 0; (i < frame_count - check_len) && !loop_found ; i+=2, j+=1)
+    for(unsigned i = 1, j = 0; (i < frames.size() - check_len) && !loop_found ; i+=2, j+=1)
     {
         bool loop_test = true;
         
@@ -133,13 +48,13 @@ int main(int argc, char *argv[])
 
         if(loop_test)
         {
-            printf("Possible loop at %d == %d\n", i, j);
+            std::cout << "Possible loop at " << i << " == " << j << "\n";
             
-            for(int k = 0; k < frame_count - i - 1; k++)
+            for(unsigned k = 0; k < frames.size() - i - 1; k++)
             {
                 if(frames[i + k] != frames[j + k])
                 {
-                    std::printf("No loop: %d != %d\n", i+k, j+k);
+                    std::cout << "Not a loop: " << (i+k) << " != " << (j+k) << "\n";
                     loop_test = false;
                     break;
                 }
@@ -151,7 +66,7 @@ int main(int argc, char *argv[])
                 loop_end = i;
                 loop_found = true;
 
-                std::printf("Found loop at %d == %d (period %d)\n", i, j, i - j);
+                std::cout << "Found loop at " << i << " == " << j << " (period " << (i-j) << ")\n";
             }
         }
     }
@@ -160,7 +75,7 @@ int main(int argc, char *argv[])
 
     if(loop_found)
     {
-        std::printf("Checking for an earlier loop\n");
+        std::cout << "Checking for an earlier loop\n";
 
         for(int i = 0; i < loop_start; i++)
         {
@@ -180,7 +95,7 @@ int main(int argc, char *argv[])
                 loop_start = i;
                 loop_end = i + loop_period;
 
-                std::printf("Found loop at %d == %d (period %d)\n", i, i+loop_period, loop_period);
+                std::cout << "Found loop at " << i << " == " << (i+loop_period) << " (period " << loop_period << ")\n";
                 break;
             }
         }
@@ -204,7 +119,7 @@ int main(int argc, char *argv[])
             {
                 loop_end = loop_start + j;
                 loop_period = loop_end - loop_start;
-                std::printf("Found loop at %d == %d (period %d)\n", loop_start, loop_end, j);
+                std::cout << "Found loop at " << loop_start << " == " << loop_end << " (period " << j << ")\n";
                 break;
             }
         }
@@ -221,40 +136,21 @@ int main(int argc, char *argv[])
             loop_start = frames.size() - 1;
         }
         
-        std::printf("Song ends at %d\n", loop_start);
+        std::cout << "Song ends at " << loop_start << "\n";
     } else {
         end_song = false;
     }
 
-    file = fopen(out_filename, "w");
-    for(int i = 0; i < loop_start; i++)
-    {
-        for(unsigned j = 0; j < frames[i].regs.size(); j++)
-        {
-            fprintf(file, "0x%02x,\t0x%02x,\n", frames[i].regs[j].address, frames[i].regs[j].value);
-        }
-        fprintf(file, "0x%02x,\t0x%02x,\n", END_FRAME, END_FRAME);
-    }
-    
     if(!end_song)
     {
-        for(int i = loop_start; i < loop_end; i++)
-        {
-            for(unsigned j = 0; j < frames[i].regs.size(); j++)
-            {
-                fprintf(file, "0x%02x,\t0x%02x,\n", frames[i].regs[j].address, frames[i].regs[j].value);
-            }
-            fprintf(file, "0x%02x,\t0x%02x,\n", END_FRAME, END_FRAME);
-        }
-        fprintf(file, "0x%02x,\t0x%02x,\n", LOOP, LOOP);
-        fprintf(file, "0x%02x,\t0x%02x,\n", (loop_start >> 8) & 0x00ff, loop_start & 0x00ff);
-        
-        if(loop_start >= (1 << 16))
-        {
-            printf("Warning: loop start %d larger than %d!\n", loop_start, 1 << 16);
-        }
+        frames.erase(frames.begin() + loop_end, frames.end());
+        Frame frame;
+        frame.regs.push_back(Reg(LOOP_FRAME, LOOP_FRAME));
+        frame.regs.push_back(Reg((loop_start >> 8) & 0x00ff, loop_start & 0x00ff));
+        frames.push_back(frame);
     }
 
-    fprintf(file, "0x%02x,\t0x%02x,\n", END_SONG, END_SONG);
-    fclose(file);
+    dat_file.frames = frames;
+
+    dat_file.save_ascii(filename_out);
 }

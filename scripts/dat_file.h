@@ -17,6 +17,7 @@ enum
 struct Reg
 {
     Reg(unsigned a, unsigned v) : address(a), value(v) {};
+    Reg() {};
 
     unsigned address;
     unsigned value;
