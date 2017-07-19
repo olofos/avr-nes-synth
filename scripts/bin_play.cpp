@@ -63,14 +63,21 @@ int dmc_read( void*, nes_addr_t addr )
 
 int main(int argc, char *argv[])
 {
-    if(argc < 1)
+    if(argc < 2)
     {
-        fprintf(stderr, "Usage: %s bin_file\n", argv[0]);
+        fprintf(stderr, "Usage: %s bin_file [wav_file]\n", argv[0]);
+        exit(1);
     }
     
     std::string filename_in(argv[1]);
+    std::string filename_out("out.wav");
 
-    wave = new Wave_Writer(44100, "out.wav");
+    if(argc > 2)
+    {
+        filename_out = argv[2];
+    }
+
+    wave = new Wave_Writer(44100, filename_out.c_str());
     wave->enable_stereo();
 
     blargg_err_t error = buf.sample_rate( 44100 );
