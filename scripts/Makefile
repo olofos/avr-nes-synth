@@ -13,7 +13,7 @@ OBJECTS_nsf_play=$(SOURCES_nsf_play:.cpp=.o)
 
 OBJECTS_bin_play=$(SOURCES_bin_play:.cpp=.o)
 
-CXXFLAGS=--std=gnu++1z -Wall
+CXXFLAGS=--std=gnu++1z -Wall -DALSA
 
 .phony: all clean
 
@@ -29,7 +29,7 @@ nsf_play: $(OBJECTS_nsf_play)
 	g++ $(CXXFLAGS) -o $@ $^
 
 bin_play: $(OBJECTS_bin_play)
-	g++ $(CXXFLAGS) -o $@ $^
+	g++ $(CXXFLAGS) -o $@ $^ -lasound
 
 dat_file_test: dat_file.cpp
 	g++ $(CXXFLAGS) -DTEST_DAT_FILE -o $@ $^
