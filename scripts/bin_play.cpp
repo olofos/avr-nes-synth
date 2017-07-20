@@ -229,18 +229,48 @@ int main(int argc, char *argv[])
 
     dat_file.load_binary(filename_in);
 
-    for(Frame frame : dat_file.frames)
+    int start_byte = 0;
+    bool continue_playing  = true;
+
+    while(continue_playing)
     {
-        for(Reg reg : frame.regs)
+        continue_playing = false;
+
+        int start_frame = 0;
+        int bytes_read = 0;
+
+        while(bytes_read < start_byte)
         {
-            total_cycles += 0;
-            apu.write_register(0, total_cycles, reg.address + apu_addr, reg.value);
-            frame_cycles -= 0;
+            bytes_read += dat_file.frames[start_frame++].regs.size() * 2;
         }
 
-        end_time_frame( frame_cycles );
-        total_cycles += frame_cycles;
-        begin_frame();
+        printf("Playing from byte %d, frame %d\n", start_byte, start_frame);
+
+        for(auto it = dat_file.frames.begin() + start_frame; it != dat_file.frames.end(); it++)
+        {
+            Frame &frame = *it;
+            bool found_loop = false;
+            for(Reg reg : frame.regs)
+            {
+                if(found_loop)
+                {
+                    found_loop = false;
+                    start_byte = (reg.address << 8) | reg.value;
+                    continue_playing = true;
+                    break;
+                } else if(reg.address == LOOP_BYTE) {
+                    found_loop = true;
+                } else {
+                    total_cycles += 0;
+                    apu.write_register(0, total_cycles, reg.address + apu_addr, reg.value);
+                    frame_cycles -= 0;
+                }
+            }
+
+            end_time_frame( frame_cycles );
+            total_cycles += frame_cycles;
+            begin_frame();
+        }
     }
     delete wave;
 
