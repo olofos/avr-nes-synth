@@ -160,7 +160,7 @@ void end_time_frame( int length )
 {
     apu.end_frame( length );
     buf.end_frame( length );
-	
+
     // Read some samples out of Blip_Buffer if there are enough to
     // fill our output buffer
     if ( buf.samples_avail() >= out_size )
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Usage: %s bin_file [wav_file]\n", argv[0]);
         exit(1);
     }
-    
+
     std::string filename_in(argv[1]);
     std::string filename_out("out.wav");
 
@@ -228,14 +228,14 @@ int main(int argc, char *argv[])
 
     dat_file.load_binary(filename_in);
 
-    int start_byte = 0;
-    bool continue_playing  = true;
+    int start_frame = 0;
+    bool loop = false;
 
-    while(continue_playing && (total_cycles < 1789773L * 2 * 300))
+    if(dat_file.frames.back().regs[0].address == LOOP_BYTE)
     {
-        continue_playing = false;
+        loop = true;
+        int start_byte = (dat_file.frames.back().regs[1].address << 8) | dat_file.frames.back().regs[1].value;
 
-        int start_frame = 0;
         int bytes_read = 0;
 
         while(bytes_read < start_byte)
@@ -243,34 +243,31 @@ int main(int argc, char *argv[])
             bytes_read += dat_file.frames[start_frame++].regs.size() * 2;
         }
 
-        printf("Playing from byte %d, frame %d\n", start_byte, start_frame);
+        dat_file.frames.pop_back();
+    }
 
-        for(auto it = dat_file.frames.begin() + start_frame; it != dat_file.frames.end(); it++)
+    do {
+        for(Frame frame : dat_file.frames)
         {
-            Frame &frame = *it;
-            bool found_loop = false;
             for(Reg reg : frame.regs)
             {
-                if(found_loop)
-                {
-                    found_loop = false;
-                    start_byte = (reg.address << 8) | reg.value;
-                    continue_playing = true;
-                    break;
-                } else if(reg.address == LOOP_BYTE) {
-                    found_loop = true;
-                } else {
-                    total_cycles += 0;
-                    apu.write_register(0, total_cycles, reg.address + apu_addr, reg.value);
-                    frame_cycles -= 0;
-                }
+                total_cycles += 0;
+                apu.write_register(0, total_cycles, reg.address + apu_addr, reg.value);
+                frame_cycles -= 0;
             }
 
             end_time_frame( frame_cycles );
             total_cycles += frame_cycles;
             begin_frame();
+
+            if(total_cycles > 1789773L * 2 * 30)
+            {
+                loop = false;
+                break;
+            }
         }
-    }
+    } while(loop);
+
     delete wave;
 
 #ifdef ALSA
