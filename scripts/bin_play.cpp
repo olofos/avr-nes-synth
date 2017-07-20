@@ -22,7 +22,7 @@ void output_samples( const blip_sample_t*, size_t count );
 const int out_size = 4096;
 blip_sample_t out_buf [out_size];
 
-int total_cycles;
+long total_cycles;
 int frame_cycles;
 
 const int apu_addr = 0x4000;
@@ -160,7 +160,6 @@ void end_time_frame( int length )
 {
     apu.end_frame( length );
     buf.end_frame( length );
-    total_cycles -= length;     
 	
     // Read some samples out of Blip_Buffer if there are enough to
     // fill our output buffer
@@ -232,7 +231,7 @@ int main(int argc, char *argv[])
     int start_byte = 0;
     bool continue_playing  = true;
 
-    while(continue_playing)
+    while(continue_playing && (total_cycles < 1789773L * 2 * 300))
     {
         continue_playing = false;
 
