@@ -66,11 +66,20 @@ triangle:
         and     channel_length_counter, channel_length_counter
         breq    done
 
-        inc     channel_step
+        ;; We can shorten this if we align wave_buf to a 256 (or 32) byte boundary
         mov     temp1, channel_step
-
-        sbrc    temp1, 4
-        com     temp1
+        inc     temp1
+        andi    temp1, 0x1F
+        mov     channel_step, temp1
+        push    r30
+        push    r31
+        ldi     r30, lo8(wave_buf)
+        ldi     r31, hi8(wave_buf)
+        add     r30, channel_step
+        adc     r31, r1
+        ld      temp1, Z
+        pop     r31
+        pop     r30
 
         in      temp2, _SFR_IO_ADDR(PINS_DAC_PORT)
         andi    temp1, 0x0F
