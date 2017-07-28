@@ -334,83 +334,94 @@ void write_reg_noise(uint8_t address, uint8_t val)
 }
 
 static uint8_t frame_counter;
+
+static void frame_update_length_counter()
+{
+    if(!channel.length_counter_halt_flag && channel_length_counter > 0)
+    {
+        channel_length_counter--;
+    }
+}
+
+static void frame_update_sweep()
+{
+    int16_t delta = channel.period >> channel.sweep_shift;
+
+    if(channel.sweep_neg_flag)
+    {
+        if(!(GPIOR0 & _BV(CONF0_BIT)))
+        {
+            delta = ~delta; // Pulse 1 adds the ones' complement
+        } else {
+            delta = -delta; // Pulse 2 adds the two's complement
+        }
+    }
+
+    uint16_t target_period = channel.period + delta;
+
+    if(channel.sweep_div_counter > 0) {
+        channel.sweep_div_counter--;
+    } else {
+        channel.sweep_div_counter = channel.sweep_div_period;
+
+        if((target_period > 0x07FF) || (channel.period < 8))
+        {
+            // Mute the channel?
+            // TODO: Introduce mure flag in GPIOR0?
+            channel_volume = 0;
+        } else if(channel.sweep_enabled) {
+            channel.period = target_period;
+            OCR1A = channel.period;
+        }
+    }
+
+    if(channel.sweep_reload_flag)
+    {
+        channel.sweep_div_counter = channel.sweep_div_period;
+        channel.sweep_reload_flag = 0;
+    }
+}
+
+statvoid frame_update_envelope()
+{
+    if(channel.env_reload_flag)
+    {
+        channel.env_reload_flag = 0;
+
+        channel.env_divider = channel.env_reload_value;
+        channel.env_volume = 0x0F;
+    } else if(!channel.env_divider) {
+        channel.env_divider = channel.env_reload_value;
+
+        if(channel.env_volume)
+        {
+            channel.env_volume--;
+        } else if(channel.length_counter_halt_flag) {
+            channel.env_volume = 0x0F;
+        }
+
+    } else {
+        channel.env_divider--;
+    }
+}
+
 void frame_update_sq()
 {
     if(frame_counter++ & 0x01) // clock length counters and sweep units
     {
-	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
-	{
-	    channel_length_counter--;
-	}
-
-        int16_t delta = channel.period >> channel.sweep_shift;
-
-        if(channel.sweep_neg_flag)
-        {
-            if(!(GPIOR0 & _BV(CONF0_BIT)))
-            {
-                delta = ~delta; // Pulse 1 adds the ones' complement
-            } else {
-                delta = -delta; // Pulse 2 adds the two's complement
-            }
-        }
-
-        uint16_t target_period = channel.period + delta;
-
-        if(channel.sweep_div_counter > 0) {
-            channel.sweep_div_counter--;
-        } else {
-            channel.sweep_div_counter = channel.sweep_div_period;
-
-            if((target_period > 0x07FF) || (channel.period < 8))
-            {
-                // Mute the channel?
-                // TODO: Introduce mure flag in GPIOR0?
-                channel_volume = 0;
-            } else if(channel.sweep_enabled) {
-                channel.period = target_period;
-                OCR1A = channel.period;
-            }
-        }
-
-        
-        if(channel.sweep_reload_flag)
-        {
-            channel.sweep_div_counter = channel.sweep_div_period;
-            channel.sweep_reload_flag = 0;
-        }
+        frame_update_length_counter();
+        frame_update_sweep();
     }
 
-
-    // clock envelopes
-
-    if(channel.env_reload_flag)
-    {
-	channel.env_reload_flag = 0;
-
-	channel.env_divider = channel.env_reload_value;
-	channel.env_volume = 0x0F;
-    } else if(!channel.env_divider) {
-	channel.env_divider = channel.env_reload_value;
-	
-	if(channel.env_volume)
-	{
-	    channel.env_volume--;
-	} else if(channel.length_counter_halt_flag) {
-	    channel.env_volume = 0x0F;
-	}
-
-    } else {
-	channel.env_divider--;
-    }
+    frame_update_envelope();
 
     if(!channel_length_counter)
     {
         channel_volume = 0;
     } else if(channel.env_const_flag) {
-	channel_volume = channel.env_reload_value;
+        channel_volume = channel.env_reload_value;
     } else {
-	channel_volume = channel.env_volume;
+        channel_volume = channel.env_volume;
     }
 }
 
@@ -418,41 +429,18 @@ void frame_update_noise()
 {
     if(frame_counter++ & 0x01) // clock length counters
     {
-	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
-	{
-	    channel_length_counter--;
-	}
+        frame_update_length_counter();
     }
 
-    // clock envelopes
-
-    if(channel.env_reload_flag)
-    {
-	channel.env_reload_flag = 0;
-
-	channel.env_divider = channel.env_reload_value;
-	channel.env_volume = 0x0F;
-    } else if(!channel.env_divider) {
-	channel.env_divider = channel.env_reload_value;
-	
-	if(channel.env_volume)
-	{
-	    channel.env_volume--;
-	} else if(channel.length_counter_halt_flag) {
-	    channel.env_volume = 0x0F;
-	}
-
-    } else {
-	channel.env_divider--;
-    }
+    frame_update_envelope();
 
     if(!channel_length_counter)
     {
         channel_volume = 0;
     } else if(channel.env_const_flag) {
-	channel_volume = channel.env_reload_value;
+        channel_volume = channel.env_reload_value;
     } else {
-	channel_volume = channel.env_volume;
+        channel_volume = channel.env_volume;
     }
 
     if(!channel_volume)
@@ -466,24 +454,20 @@ void frame_update_tri()
 {
     if(frame_counter++ & 0x01) // clock length counters
     {
-	if(!channel.length_counter_halt_flag && channel_length_counter > 0)
-	{
-	    channel_length_counter--;
-	}
+        frame_update_length_counter();
     }
 
     // clock triangle's linear counter
-    
     if(channel.linear_counter_reload_flag)
     {
-	channel_linear_counter = channel.linear_counter_reload_value;
+        channel_linear_counter = channel.linear_counter_reload_value;
     } else if(channel_linear_counter > 0) {
-	channel_linear_counter--;
+        channel_linear_counter--;
     }
 
     if(!channel.length_counter_halt_flag)
     {
-	channel.linear_counter_reload_flag = 0;
+        channel.linear_counter_reload_flag = 0;
     }
 }
 
