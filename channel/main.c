@@ -34,7 +34,7 @@ typedef struct
     volatile uint8_t enabled;                // Square + Noise + Triangle
     uint8_t length_counter_halt_flag;        // Square + Noise + Triangle
 
-#if 0 // moved to register    
+#if 0 // moved to register
     volatile uint8_t length_counter;         // Square + Noise + Triangle
 
     union {
@@ -57,7 +57,7 @@ typedef struct
     uint8_t env_divider;                     // Square + Noise
     uint8_t env_volume;                      // Square + Noise
 
-#if 0 // moved to register & GPIOR0    
+#if 0 // moved to register & GPIOR0
     union {
         volatile uint8_t duty_cycle;         // Square
         volatile uint8_t shift_mode;         // Noise
@@ -74,7 +74,7 @@ typedef struct
     uint8_t sweep_neg_flag;                  // Square
     uint8_t sweep_reload_flag;               // Square
     uint8_t sweep_enabled;                   // Square
-    
+
 } channel_t;
 
 channel_t channel;
@@ -144,7 +144,7 @@ static void write_reg_sq_reg_1(uint8_t val)
       4-6   sweep period
       7     sweep enable
     */
-        
+
     channel.sweep_enabled = val & 0x80;
     channel.sweep_neg_flag = val & 0x08;
 
@@ -311,7 +311,7 @@ void write_reg_noise(uint8_t address, uint8_t val)
          */
 
         GPIOR0 = (GPIOR0 & ~_BV(SHIFT_MODE_BIT)) | ((val & 0x80) ? _BV(SHIFT_MODE_BIT) : 0);
-        
+
         channel.period = noise_period_lut[val & 0x0F];
 
         OCR1A = channel.period;
@@ -485,7 +485,7 @@ void io_init()
 
     set_input(PIN_DCLK);
     disable_pullup(PIN_DCLK);
-    
+
     set_input(PIN_FCLK);
     disable_pullup(PIN_FCLK);
 
@@ -500,7 +500,6 @@ void io_init()
 
 void timers_init()
 {
-    
     TCCR1A = 0;
     TCCR1B = _BV(WGM12);  // Mode 4, CTC on OCR1A
     TIMSK1 = _BV(OCIE1A); // Set interrupt on compare match
@@ -578,8 +577,7 @@ int main()
     blink_conf();
 
     for(;;)
-    {        
-
+    {
         while(!cbuf_empty(reg_data))
         {
             uint8_t address = cbuf_pop(reg_address);
@@ -590,7 +588,7 @@ int main()
         }
 
         set_low(PIN_LED);
-                    
+
         if(GPIOR0 & _BV(FRAME_FLAG_BIT))
         {
 //            set_high(PIN_LED);
@@ -614,7 +612,7 @@ ISR(TIMER1_COMPA_vect)
         // case CHAN_SQ2:
 
         channel_step = (channel_step+1) & 0x0F;
-        
+
         if(channel_step < channel_duty_cycle)
         {
             PINS_DAC_PORT |= channel_volume;
@@ -630,7 +628,7 @@ ISR(TIMER1_COMPA_vect)
                 channel_step = (channel_step + 1) & 0x1F;
 
                 uint8_t val = channel_step;
-        
+
                 if(channel_step & 0x10)
                 {
                     val = ~channel_step;

@@ -16,7 +16,7 @@ TIMER1_COMPA_vect:
         in      temp1, _SFR_IO_ADDR(SREG)
         push    temp1
         push    temp2
-        
+
         ;; Check MSB of config
         sbis    _SFR_IO_ADDR(GPIOR0), CONF1_BIT
         rjmp    square
@@ -25,8 +25,8 @@ TIMER1_COMPA_vect:
 not_square:
         sbis    _SFR_IO_ADDR(GPIOR0), CONF0_BIT
         rjmp    triangle
-        
-noise:  
+
+noise:
         mov     temp1, shift_register_lo             ; 1
         bst     shift_register_lo, 6                 ; 1
         sbis    _SFR_IO_ADDR(GPIOR0), SHIFT_MODE_BIT ; 2/1
@@ -34,7 +34,7 @@ noise:
         ;; the first feedbackbit is now in T
 
         ;; We don't need to zero temp2 first since we only care about bit 0
-        bld     temp2, 0                             ; 1 
+        bld     temp2, 0                             ; 1
         eor     temp1, temp2                         ; 1
 
         bst     temp1, 0                             ; 1
@@ -48,8 +48,8 @@ noise:
         sbrs    shift_register_lo, 0                 ; 2/1
         or      temp1, channel_volume                ; 1
                                                      ; 14 cycles
-        
-output: 
+
+output:
         out      _SFR_IO_ADDR(PINS_DAC_PORT), temp1
 done:
         pop     temp2
@@ -60,7 +60,7 @@ done:
 //        cbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         reti
 
-triangle:        
+triangle:
         and     channel_linear_counter, channel_linear_counter
         breq    done
         and     channel_length_counter, channel_length_counter
@@ -87,7 +87,7 @@ triangle:
         or      temp1, temp2
         rjmp    output
 
-square: 
+square:
         ;; channel_step = (channel_step + 1) & 0x0F
         mov     temp1, channel_step
         subi    temp1, 0xFF
@@ -101,7 +101,7 @@ square:
         brcc    output
         or      temp1, channel_volume
         rjmp    output
-        
+
 
 
         .global PCINT1_vect
@@ -111,4 +111,3 @@ PCINT1_vect:
         reti
 
 #endif
-        
