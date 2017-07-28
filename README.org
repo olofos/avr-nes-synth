@@ -47,10 +47,10 @@
 
    | CONF1      | CONF0      | Channel        |
    |------------+------------+----------------|
-   | Not fitted | Not fitted | Square wave #1 |
-   | Not fitted | Fitted     | Square wave #2 |
-   | Fitted     | Not fitted | Triangle wave  |
-   | Fitted     | Fitted     | Noise          |
+   | Fitted     | Fitted     | Square wave #1 |
+   | Fitted     | Not fitted | Square wave #2 |
+   | Not fitted | Fitted     | Triangle wave  |
+   | Not fitted | Not fitted | Noise          |
 
    Each channel has a four bit R2R DAC that is used to construct the outgoing audio wave form.
 
