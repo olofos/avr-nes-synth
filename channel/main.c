@@ -78,19 +78,19 @@ channel_t channel;
 
 
 
-const uint8_t length_lut[] = {
+const uint8_t length_lut[32] = {
     10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
     12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
 };
 
 // Note: the lowest value is made a bit larger in order for the interrupt to have time to fire
-const uint16_t noise_period_lut[] = {
+const uint16_t noise_period_lut[16] = {
 //    0x004, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
     0x008, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
     0x0ca, 0x0fe, 0x17c, 0x1fc, 0x2fa, 0x3f8, 0x7f2, 0xfe4
 };
 
-const uint8_t duty_tab[] = {2, 4, 8, 12};
+const uint8_t duty_tab[4] = {2, 4, 8, 12};
 
 
 #define reg_address_LEN 32
@@ -115,75 +115,89 @@ struct
 volatile uint8_t frame_flag; // moved to GPIOR0
 #endif
 
+static void write_reg_sq_reg_0(uint8_t val)
+{
+    /*
+      0-3   volume / envelope decay rate
+      4     envelope decay disable
+      5     length counter clock disable / envelope decay looping enable (hold note)
+      6-7   duty cycle type (unused on noise channel)
+    */
+
+    channel.env_reload_value = val & 0x0f;
+
+    channel.env_const_flag = val & 0x10;
+    channel.length_counter_halt_flag = val & 0x20;
+
+    channel_duty_cycle = duty_tab[val >> 6];
+}
+
+static void write_reg_sq_reg_1(uint8_t val)
+{
+    /*
+      0-2   right shift amount
+      3     negative
+      4-6   sweep period
+      7     sweep enable
+    */
+        
+    channel.sweep_enabled = val & 0x80;
+    channel.sweep_neg_flag = val & 0x08;
+
+    channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
+    channel.sweep_shift = val & 0x07;
+
+    channel.sweep_reload_flag = 1;
+}
+
+static void write_reg_sq_reg_2(uint8_t val)
+{
+    /*
+      0-7   8 LSB of wavelength
+    */
+    channel.period = (channel.period & 0xFF00) | val;
+    OCR1A = channel.period;
+}
+
+static void write_reg_sq_reg_3(uint8_t val)
+{
+    /*
+      0-2   3 MS bits of wavelength (unused on noise channel)
+      3-7   length counter load register
+    */
+    channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
+
+    channel_length_counter = length_lut[val >> 3];
+    channel.env_reload_flag = 1;
+
+    OCR1A = channel.period;
+    if(channel.period < 8)
+    {
+        timer1_stop();
+    } else {
+        timer1_start();
+    }
+}
+
+
 void write_reg_sq1(uint8_t address, uint8_t val)
 {
     switch(address)
     {
     case 0x00:
-        /*
-          0-3   volume / envelope decay rate
-          4     envelope decay disable
-          5     length counter clock disable / envelope decay looping enable (hold note)
-          6-7   duty cycle type (unused on noise channel)
-        */
-
-        channel.env_reload_value = val & 0x0f;
-
-        channel.env_const_flag = val & 0x10;
-        channel.length_counter_halt_flag = val & 0x20;
-
-        channel_duty_cycle = duty_tab[val >> 6];
-
+        write_reg_sq_reg_0(val);
         break;
 
-        // 0x4001 & 0x4005
     case 0x01:
-        /*
-          0-2   right shift amount
-          3     negative
-          4-6   sweep period
-          7     sweep enable
-        */
-        
-        channel.sweep_enabled = val & 0x80;
-        channel.sweep_neg_flag = val & 0x08;
-
-        channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
-        channel.sweep_shift = val & 0x07;
-
-        channel.sweep_reload_flag = 1;
-
+        write_reg_sq_reg_1(val);
         break;
 
-        // 0x4002 & 0x4006
     case 0x02:
-        /*
-          0-7   8 LSB of wavelength
-        */
-        channel.period = (channel.period & 0xFF00) | val;
-
-
-        OCR1A = channel.period;
+        write_reg_sq_reg_2(val);
         break;
 
-        // 0x4003 & 0x4007
     case 0x03:
-        /*
-          0-2   3 MS bits of wavelength (unused on noise channel)
-          3-7   length counter load register
-        */
-        channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
-
-        channel_length_counter = length_lut[val >> 3];
-        channel.env_reload_flag = 1;
-
-        OCR1A = channel.period;
-        if(channel.period < 8)
-        {
-            timer1_stop();
-        } else {
-            timer1_start();
-        }
+        write_reg_sq_reg_3(val);
         break;
 
     case 0x15:
@@ -197,72 +211,20 @@ void write_reg_sq2(uint8_t address, uint8_t val)
 {
     switch(address)
     {
-        // 0x4000 & 0x4004
     case 0x04:
-        /*
-          0-3   volume / envelope decay rate
-          4     envelope decay disable
-          5     length counter clock disable / envelope decay looping enable (hold note)
-          6-7   duty cycle type (unused on noise channel)
-        */
-
-        channel.env_reload_value = val & 0x0f;
-
-        channel.env_const_flag = val & 0x10;
-        channel.length_counter_halt_flag = val & 0x20;
-
-        channel_duty_cycle = duty_tab[val >> 6];
-
+        write_reg_sq_reg_0(val);
         break;
 
-        // 0x4001 & 0x4005
     case 0x05:
-        /*
-          0-2   right shift amount
-          3     negative
-          4-6   sweep period
-          7     sweep enable
-        */
-        
-        channel.sweep_enabled = val & 0x80;
-        channel.sweep_neg_flag = val & 0x08;
-
-        channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
-        channel.sweep_shift = val & 0x07;
-
-        channel.sweep_reload_flag = 1;
-
+        write_reg_sq_reg_1(val);
         break;
 
-        // 0x4002 & 0x4006
     case 0x06:
-        /*
-          0-7   8 LSB of wavelength
-        */
-        channel.period = (channel.period & 0xFF00) | val;
-        OCR1A = channel.period;
-        
+        write_reg_sq_reg_2(val);
         break;
 
-        // 0x4003 & 0x4007
     case 0x07:
-
-        /*
-          0-2   3 MS bits of wavelength (unused on noise channel)
-          3-7   length counter load register
-        */
-        channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
-
-        channel_length_counter = length_lut[val >> 3];
-        channel.env_reload_flag = 1;
-
-        OCR1A = channel.period;
-        if(channel.period < 8)
-        {
-            timer1_stop();
-        } else {
-            timer1_start();
-        }
+        write_reg_sq_reg_3(val);
         break;
 
     case 0x15:
@@ -281,7 +243,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
           7     length counter clock disable / linear counter start
         */
 
-        channel.length_counter_halt_flag = val >> 7;
+        channel.length_counter_halt_flag = val & 0x80;
 
         channel.linear_counter_reload_value = val & 0x7f;
         break;
@@ -458,7 +420,6 @@ void frame_update_noise()
 	}
     }
 
-
     // clock envelopes
 
     if(channel.env_reload_flag)
@@ -564,18 +525,11 @@ void interrupts_init()
     PCMSK1 = _BV(PCINT13); // Enable FCLK interrupt
 }
 
-int main()
+void read_conf()
 {
-    io_init();
-    timers_init();
-    interrupts_init();
-
-    cbuf_init(reg_address);
-    cbuf_init(reg_data);
+    uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
     GPIOR0 = (GPIOR0 & ~(_BV(CONF0_BIT) | _BV(CONF1_BIT))) | (is_high(PIN_CONF0) ? _BV(CONF0_BIT) : 0) | (is_high(PIN_CONF1) ? _BV(CONF1_BIT) : 0);
-
-    uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
     switch(conf)
     {
@@ -605,8 +559,11 @@ int main()
         shift_register_lo = 1;
         break;
     }
+}
 
-    sei();
+void blink_conf()
+{
+    uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
     for(uint8_t n = 0; n <= conf; n++)
     {
@@ -615,8 +572,22 @@ int main()
         set_low(PIN_LED);
         _delay_ms(250);
     }
+}
 
-    sei();    
+int main()
+{
+    io_init();
+    timers_init();
+    interrupts_init();
+
+    cbuf_init(reg_address);
+    cbuf_init(reg_data);
+
+    read_conf();
+
+    sei();
+
+    blink_conf();
 
     for(;;)
     {        
@@ -626,6 +597,7 @@ int main()
             uint8_t address = cbuf_pop(reg_address);
             uint8_t val = cbuf_pop(reg_data);
 
+            // TODO: Handle 0x4017 to change frame counter mode
             write_reg(address, val);
         }
 
