@@ -3,7 +3,6 @@
         #include "registers.h"
 
         #define temp1 r24
-        #define temp2 r25
 
         .section .text
 
@@ -15,7 +14,6 @@ TIMER1_COMPA_vect:
         push    temp1
         in      temp1, _SFR_IO_ADDR(SREG)
         push    temp1
-        push    temp2
 
         ;; Check MSB of config
         sbis    _SFR_IO_ADDR(GPIOR0), CONF1_BIT
@@ -52,7 +50,6 @@ noise:
 output:
         out      _SFR_IO_ADDR(PINS_DAC_PORT), temp1
 done:
-        pop     temp2
         pop     temp1
         out     _SFR_IO_ADDR(SREG), temp1
         pop     temp1
@@ -66,25 +63,28 @@ triangle:
         and     channel_length_counter, channel_length_counter
         breq    done
 
+        mov     temp1, channel_step                  ; 1
+        inc     temp1                                ; 1
+        andi    temp1, 0x1F                          ; 1
+        mov     channel_step, temp1                  ; 1
+        push    r30                                  ; 2
+        push    r31                                  ; 2
         ;; We can shorten this if we align wave_buf to a 256 (or 32) byte boundary
-        mov     temp1, channel_step
-        inc     temp1
-        andi    temp1, 0x1F
-        mov     channel_step, temp1
-        push    r30
-        push    r31
-        ldi     r30, lo8(wave_buf)
-        ldi     r31, hi8(wave_buf)
-        add     r30, channel_step
-        adc     r31, r1
-        ld      temp1, Z
-        pop     r31
-        pop     r30
+        ;;  mov     r30, channel_step
+        ;;  ldi     r31, hi8(wave_buf)
+        ldi     r30, lo8(wave_buf)                   ; 1
+        ldi     r31, hi8(wave_buf)                   ; 1
+        add     r30, channel_step                    ; 1
+        adc     r31, r1                              ; 1
+        ld      temp1, Z                             ; 2
+        pop     r31                                  ; 2
+        pop     r30                                  ; 2
 
-        in      temp2, _SFR_IO_ADDR(PINS_DAC_PORT)
-        andi    temp1, 0x0F
-        andi    temp2, 0xF0
-        or      temp1, temp2
+        andi    temp1, 0x0F                          ; 1
+        mov     temp2, temp1                         ; 1
+        in      temp1, _SFR_IO_ADDR(PINS_DAC_PORT)   ; 1 
+        andi    temp1, 0xF0                          ; 1
+        or      temp1, temp2                         ; 1
         rjmp    output
 
 square:

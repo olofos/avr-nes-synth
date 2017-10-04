@@ -30,6 +30,8 @@ register uint8_t shift_register_hi asm("r5");
 #define shift_register_lo      r4
 #define shift_register_hi      r5
 
+#define temp2                  r6
+
 #endif
 
 #endif
