@@ -30,7 +30,16 @@ volatile uint8_t wave_buf[32] __attribute__ ((aligned (0x100))) = {
 
 typedef struct
 {
-    uint16_t period;                         // Square + Noise + Triangle
+    union
+    {
+        uint16_t period;                     // Square + Noise + Triangle
+        struct
+        {
+            uint8_t period_lo;
+            uint8_t period_hi;
+        };
+    };
+
     volatile uint8_t enabled;                // Square + Noise + Triangle
     uint8_t length_counter_halt_flag;        // Square + Noise + Triangle
 
@@ -89,7 +98,7 @@ const uint8_t length_lut[32] = {
 
 // Note: the lowest value is made a bit larger in order for the interrupt to have time to fire
 const uint16_t noise_period_lut[16] = {
-//    0x004, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
+//  0x004, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
     0x008, 0x008, 0x010, 0x020, 0x040, 0x060, 0x080, 0x0a0,
     0x0ca, 0x0fe, 0x17c, 0x1fc, 0x2fa, 0x3f8, 0x7f2, 0xfe4
 };
@@ -159,7 +168,7 @@ static void write_reg_sq_reg_2(uint8_t val)
     /*
       0-7   8 LSB of wavelength
     */
-    channel.period = (channel.period & 0xFF00) | val;
+    channel.period_lo = val;
     OCR1A = channel.period;
 }
 
@@ -169,10 +178,10 @@ static void write_reg_sq_reg_3(uint8_t val)
       0-2   3 MS bits of wavelength (unused on noise channel)
       3-7   length counter load register
     */
-    channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
-
     channel_length_counter = length_lut[val >> 3];
     channel.env_reload_flag = 1;
+
+    channel.period_hi = val & 0x07;
 
     OCR1A = channel.period;
     if(channel.period < 8)
@@ -257,7 +266,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
           0-7   8 LSB of wavelength
         */
 
-        channel.period = (channel.period & 0xFF00) | val;
+        channel.period_lo = val;
         OCR1A = channel.period;
         break;
 
@@ -266,10 +275,10 @@ void write_reg_tri(uint8_t address, uint8_t val)
           0-2   3 MS bits of wavelength (unused on noise channel)
           3-7   length counter load register
         */
-        channel.period = (((uint16_t) (val & 0x07) ) << 8) | (channel.period & 0x00FF);
         channel_length_counter = length_lut[val >> 3];
-
         channel.linear_counter_reload_flag = 1;
+
+        channel.period_hi = val & 0x07;
 
         OCR1A = channel.period;
 
@@ -310,7 +319,12 @@ void write_reg_noise(uint8_t address, uint8_t val)
           7   mode
          */
 
-        GPIOR0 = (GPIOR0 & ~_BV(SHIFT_MODE_BIT)) | ((val & 0x80) ? _BV(SHIFT_MODE_BIT) : 0);
+        if(val & 0x80)
+        {
+            GPIOR0 |= _BV(SHIFT_MODE_BIT);
+        } else {
+            GPIOR0 &= ~_BV(SHIFT_MODE_BIT);
+        }
 
         channel.period = noise_period_lut[val & 0x0F];
 
@@ -367,7 +381,7 @@ static void frame_update_sweep()
         if((target_period > 0x07FF) || (channel.period < 8))
         {
             // Mute the channel?
-            // TODO: Introduce mure flag in GPIOR0?
+            // TODO: Introduce mute flag in GPIOR0?
             channel_volume = 0;
         } else if(channel.sweep_enabled) {
             channel.period = target_period;
@@ -552,13 +566,13 @@ void blink_conf()
 {
     uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
-    for(uint8_t n = 0; n <= conf; n++)
+    do
     {
         set_high(PIN_LED);
         _delay_ms(125);
         set_low(PIN_LED);
         _delay_ms(250);
-    }
+    } while(conf--);
 }
 
 int main()
@@ -591,10 +605,8 @@ int main()
 
         if(GPIOR0 & _BV(FRAME_FLAG_BIT))
         {
-//            set_high(PIN_LED);
             GPIOR0 &= ~_BV(FRAME_FLAG_BIT);
             frame_update();
-//            set_low(PIN_LED);
         }
     }
 }

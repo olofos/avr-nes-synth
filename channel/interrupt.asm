@@ -10,7 +10,6 @@
         .global TIMER1_COMPA_vect
 TIMER1_COMPA_vect:
 
-//        sbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         push    temp1
         in      temp1, _SFR_IO_ADDR(SREG)
         push    temp1
@@ -53,8 +52,6 @@ done:
         pop     temp1
         out     _SFR_IO_ADDR(SREG), temp1
         pop     temp1
-
-//        cbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         reti
 
 triangle:
@@ -70,8 +67,13 @@ triangle:
         push    r30                                  ; 2
         push    r31                                  ; 2
         ;; We can shorten this if we align wave_buf to a 256 (or 32) byte boundary
-        ;;  mov     r30, channel_step
         ;;  ldi     r31, hi8(wave_buf)
+        ;;  mov     r30, channel_step
+        ;; or
+        ;;  ldi     r31, hi8(wave_buf)
+        ;;  ldi     r30, lo8(wave_buf)
+        ;;  add     r30, channel_step
+
         ldi     r30, lo8(wave_buf)                   ; 1
         ldi     r31, hi8(wave_buf)                   ; 1
         add     r30, channel_step                    ; 1
@@ -81,8 +83,17 @@ triangle:
         pop     r30                                  ; 2
 
         andi    temp1, 0x0F                          ; 1
+
+        ;; Add a two bit volume to the triangle channel
+        ;;  sbic    _SFR_IO_ADDR(GPIOR0), VOL_BIT1       ; 1/2
+        ;;  lsr     temp1                                ; 1
+        ;;  sbic    _SFR_IO_ADDR(GPIOR0), VOL_BIT1       ; 1/2
+        ;;  lsr     temp1                                ; 1
+        ;;  sbic    _SFR_IO_ADDR(GPIOR0), VOL_BIT0       ; 1/2
+        ;;  lsr     temp1                                ; 1
+
         mov     temp2, temp1                         ; 1
-        in      temp1, _SFR_IO_ADDR(PINS_DAC_PORT)   ; 1 
+        in      temp1, _SFR_IO_ADDR(PINS_DAC_PORT)   ; 1
         andi    temp1, 0xF0                          ; 1
         or      temp1, temp2                         ; 1
         rjmp    output
@@ -107,7 +118,6 @@ square:
         .global PCINT1_vect
 PCINT1_vect:
         sbi _SFR_IO_ADDR(GPIOR0), FRAME_FLAG_BIT
-//        sbi     _SFR_IO_ADDR(PIN_LED_PORT), PIN_LED
         reti
 
 #endif
