@@ -1,0 +1,91 @@
+* Ideas about creating a bootloader
+
+Currently each channel needs to be programmed separately using an
+external programmer. This means that there is a lot of moving cables
+around and running avrdude for each channel. In practice this means
+that during development only one channel tends to get updated, while
+the other three channels run older versions. In order to facilitate
+development it would therefore be useful to develop a system that can
+be used to program all four channels simultaneously.
+
+The plan is to create a system to program the channels that can be
+used without any hardware changes.
+
+** Input
+
+   There are three possible methods for loading the new firmware:
+
+   1. SD card 
+
+      One possibility is to simply add the hex file to the SD card and
+      then have a menu option where the main controller reads in the
+      hex file and transmits the data to the channels.
+
+   2. UART 
+
+      A second possibility is to download the data over UART. The only
+      UART connection that is available is that of the IO-bridge,
+      which currently runs at 38400 BAUD and communicates with the
+      main controller via I2C. This might mean that the communication
+      will be a bit slow. In this case the main controller could
+      implement the [[http://www.atmel.com/images/doc2525.pdf][STK500 protocol]]. However, since the UART data
+      comes through the IO-bridge, and the main controller is the I2C
+      master, this would require a polling scheme to get the incoming
+      data.
+
+   3. Reusing the ISP header of the main controller
+
+      Finally, it would be possible to directly communicate with an
+      external programmer over the ISP interface. This would require a
+      simple adaptor that disconnects the reset line from the
+      programmer, in order to avoid resetting, and hence programming,
+      the main controller. In principle it would be possible to
+      emulate the ISP protocol as described in [[http://www.atmel.com/Images/Atmel-0943-In-System-Programming_ApplicationNote_AVR910.pdf][Atmel App note
+      AVR910]]. However, it seems like this protocol can only be used
+      for erasing and programming the full chip, which makes it less
+      useful for us since we want to preserve the bootloader.
+
+
+** Communication between the main controller and the channels
+
+   In the current version of the main firmware, the main controller
+   communicates with the channels over a one-direction bus which
+   contains eight data bits as well as a data clock and a frame
+   clock. The channels currently do not have the ability to talk back
+   to the main controller. However, two-way communication would be
+   beneficial during programming of the channel firmware. To do this
+   we can reconfigure the bus as an open drain bus so that it can be
+   used both ways. The data clock can still be driven by the main
+   controller.
+
+   As long as the update is successful, the four channels should
+   generally give the same reply for each query during programming. To
+   ensure that this is true, each byte from the channels can be
+   transmitted twice, once with the actual value of the byte and once
+   the complement of this value. This allows us to check that the
+   exact value transmitted from all four channels agrees.
+
+** Programming multiple channels
+
+   We need to update the firmware of all four channels. There are two
+   obvious strategies for how to do this:
+
+   1. Update the channels serially one after the other
+      
+      In this case only one channel at a time needs to talk back to
+      the main controller, which simplifies the communication
+      protocol.
+
+      In the beginning of the boot loader we could have the main
+      controller set the data bus to a value 0-3 in order to indicate
+      which channel should be programmed. When the firmware of one
+      channel has been updated we just need to reset the channels to
+      update the firmware of the next channel.
+
+
+   2. Update all four channels in parallel
+
+      This should allow a faster update of the four channels, but we'd
+      need to implement a more complicated communication
+      protocol. However, an open drain protocol allows all four
+      channels to communicate simultaneously.
