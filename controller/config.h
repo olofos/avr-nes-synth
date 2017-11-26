@@ -7,7 +7,7 @@
 
 #define MAJOR_VERSION 0
 #define MINOR_VERSION 1
-#define COPYRIGHT_YEAR "2016-2017"
+#define COPYRIGHT_YEAR "2016-17"
 #define AUTHOR "OOS"
 
 #define BAUD 19200UL

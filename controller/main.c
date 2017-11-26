@@ -5,7 +5,7 @@
  * buffer (one with addresses and one with data values), and handles
  * user input
  *
- * Playback is performed using two timers: 
+ * Playback is performed using two timers:
  *
  * - Timer 0 fires at 240 Hz
  *   and outputs the frame clock. At every four frames it starts timer 2
@@ -13,8 +13,8 @@
  *
  * - Timer 1 fires at 8 Hz and increments global_timer
  *
- * - Timer 2 fires at around 60 kHz. It outputs the data from the address 
- *   and value buffers to the bus, and stops itself once it finds the end 
+ * - Timer 2 fires at around 60 kHz. It outputs the data from the address
+ *   and value buffers to the bus, and stops itself once it finds the end
  *   of frame marker
  ************************************************************************/
 
@@ -23,7 +23,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
-#include <avr/eeprom.h> 
+#include <avr/eeprom.h>
 
 #include <stdlib.h>
 
@@ -38,6 +38,12 @@
 #include "io-bridge.h"
 #include "menu.h"
 #include "cbuf.h"
+
+#include "ssd1306-internal.h"
+#include "ssd1306-cmd.h"
+#include "logo-paw-64x64.h"
+#include "logo-paw-48x48.h"
+#include <string.h>
 
 #define reg_address_LEN 128
 #define reg_data_LEN 128
@@ -147,6 +153,12 @@ static const char* const menu_playlist_edit_entries[] PROGMEM = {
 };
 
 
+struct menu_info_t menu_main_info;
+struct menu_info_t menu_game_info;
+struct menu_info_t menu_playlist_info;
+struct menu_info_t menu_playlist_edit_info;
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline void channel_reset_hold()
@@ -206,24 +218,24 @@ void i2c_scan()
     uint8_t num = 0;
 
     for(uint8_t address = 0; address < 0x80; address++)
-    {	
-	uint8_t status = i2c_start(address, I2C_WRITE);
+    {
+        uint8_t status = i2c_start(address, I2C_WRITE);
 
-	if(status == I2C_OK)
-	{
+        if(status == I2C_OK)
+        {
             i2c_stop();
-            
-	    log_puts("Device found at 0x");
-            log_put_uint8_hex(address);
-	    log_nl();
 
-	    num++;
-	}
+            log_puts("Device found at 0x");
+            log_put_uint8_hex(address);
+            log_nl();
+
+            num++;
+        }
     }
 
     if(!num)
     {
-	log_puts("No devices found\n");
+        log_puts("No devices found\n");
     }
 }
 
@@ -234,32 +246,32 @@ void bitmap(const char* filename)
     log_puts("Opening \"");
     log_puts(filename);
     log_puts("\"\n");
-    
+
     fat32_open_root_dir();
     fat32_open_file(filename, "BIT");
 
     uint8_t buf[128];
 
     ssd1306_bitmap_begin();
-    
+
     while(fat32_read(&buf, 128))
     {
-	for(uint8_t j = 0; j < 16; j++)
-	{
-	    for(uint8_t i = 0; i < 8; i++)
-	    {
-		uint8_t b0 = (buf[j +   0] & _BV(7-i)) ? 1 : 0;
-		uint8_t b1 = (buf[j +  16] & _BV(7-i)) ? 1 : 0;
-		uint8_t b2 = (buf[j +  32] & _BV(7-i)) ? 1 : 0;
-		uint8_t b3 = (buf[j +  48] & _BV(7-i)) ? 1 : 0;
-		uint8_t b4 = (buf[j +  64] & _BV(7-i)) ? 1 : 0;
-		uint8_t b5 = (buf[j +  80] & _BV(7-i)) ? 1 : 0;
-		uint8_t b6 = (buf[j +  96] & _BV(7-i)) ? 1 : 0;
-		uint8_t b7 = (buf[j + 112] & _BV(7-i)) ? 1 : 0;
-	    
-		i2c_write_byte((b7 << 7) | (b6 << 6) | (b5 << 5) | (b4 << 4) | (b3 << 3) | (b2 << 2) | (b1 << 1) | (b0 << 0));
-	    }
-	}
+        for(uint8_t j = 0; j < 16; j++)
+        {
+            for(uint8_t i = 0; i < 8; i++)
+            {
+                uint8_t b0 = (buf[j +   0] & _BV(7-i)) ? 1 : 0;
+                uint8_t b1 = (buf[j +  16] & _BV(7-i)) ? 1 : 0;
+                uint8_t b2 = (buf[j +  32] & _BV(7-i)) ? 1 : 0;
+                uint8_t b3 = (buf[j +  48] & _BV(7-i)) ? 1 : 0;
+                uint8_t b4 = (buf[j +  64] & _BV(7-i)) ? 1 : 0;
+                uint8_t b5 = (buf[j +  80] & _BV(7-i)) ? 1 : 0;
+                uint8_t b6 = (buf[j +  96] & _BV(7-i)) ? 1 : 0;
+                uint8_t b7 = (buf[j + 112] & _BV(7-i)) ? 1 : 0;
+
+                i2c_write_byte((b7 << 7) | (b6 << 6) | (b5 << 5) | (b4 << 4) | (b3 << 3) | (b2 << 2) | (b1 << 1) | (b0 << 0));
+            }
+        }
         _delay_ms(1);
     }
     ssd1306_bitmap_end();
@@ -298,7 +310,7 @@ void timers_init()
     TCCR1B = _BV(WGM12) | _BV(CS12) | _BV(CS10); // CTC mode, prescaler 1024
     TIMSK1 |= _BV(OCIE1A);
     OCR1A = 1747; // 8 Hz timer
-    
+
     TCCR2A = _BV(WGM21); // CTC mode
     TCCR2B = 0;
     TIMSK2 |= _BV(OCIE2A); // Set interrupt on compare match
@@ -308,7 +320,7 @@ void timers_init()
 void song_open(const char* filename)
 {
     fat32_open_root_dir();
-    
+
     if(fat32_open_file(filename, "BIN"))
     {
         song_done = 0;
@@ -351,13 +363,13 @@ void error_led_loop()
         set_high(PIN_LED);
         _delay_ms(125);
         set_low(PIN_LED);
-        
+
         _delay_ms(375);
     }
 }
 
 void song_read_data()
-{   
+{
     while(!cbuf_full(reg_data))
     {
         uint8_t data[2];
@@ -380,7 +392,7 @@ void song_read_data()
 
 
             toggle(PIN_LED);
-            
+
             fat32_seek(dest);
         } else {
             cbuf_push(reg_address, data[0]);
@@ -418,7 +430,7 @@ uint8_t song_play(const char* filename)
     set_low(PIN_LED);
 
     uint8_t ret;
-    
+
     while(!(ret = song_handle_inputs()) && !song_done)
     {
         song_read_data();
@@ -437,7 +449,7 @@ uint8_t song_play(const char* filename)
     {
         ret = SONG_NEXT;
     }
-    
+
     return ret;
 }
 
@@ -488,7 +500,7 @@ void category_read_info(uint8_t choice, char *catname, uint8_t *len)
     }
 
     ssd1306_text_start(0,1);
-    
+
     char c;
     for(uint8_t i = 0; i < 20; i++)
     {
@@ -594,7 +606,10 @@ void about_show()
 
     while(!get_input())
         ;
+}
 
+void splash_show()
+{
 }
 
 extern char log_buf[LOG_BUF_LEN];
@@ -658,6 +673,151 @@ void log_show()
     }
 }
 
+static void menu_init()
+{
+    menu_pgm_init(menu_main_entries, sizeof(menu_main_entries)/sizeof(menu_main_entries[0]), &menu_main_info);
+    menu_pgm_init(menu_playlist_edit_entries, sizeof(menu_playlist_edit_entries)/sizeof(menu_playlist_edit_entries[0]), &menu_playlist_edit_info);
+    menu_fat32_init(menu_name_cat, &menu_game_info);
+    menu_eeprom_init(&menu_playlist_info);
+}
+
+
+static void menu_play_category_loop()
+{
+    for(;;)
+    {
+        uint8_t res = menu_loop(&menu_game_info);
+        if(res & MENU_BACK_FLAG)
+                    break;
+
+        category_play(res);
+    }
+}
+
+static void menu_play_playlist_loop()
+{
+    for(;;)
+    {
+        uint8_t res = menu_loop(&menu_playlist_info);
+        if(res & MENU_BACK_FLAG)
+            break;
+
+        char filename[8];
+        eeprom_read_block(filename, (void*)(res*8), 8);
+
+        song_play(filename);
+    }
+}
+
+static void menu_edit_playlist_loop()
+{
+    for(;;)
+    {
+        uint8_t res = menu_loop(&menu_playlist_edit_info);
+        if(res & MENU_BACK_FLAG)
+            break;
+
+        switch(res)
+        {
+        case MENU_PLAYLIST_EDIT_ADD_TRACK:
+            for(;;)
+            {
+                res = menu_loop(&menu_game_info);
+                if(res & MENU_BACK_FLAG)
+                    break;
+
+                char filename[8];
+                uint8_t len;
+
+                category_read_info(res, filename, &len);
+
+                uint8_t track = 1;
+
+                ssd1306_clear();
+                ssd1306_text_start(0,0);
+                for(uint8_t i = 0; i < 8; i++)
+                {
+                    ssd1306_text_putc(filename[i]);
+                }
+                ssd1306_text_end();
+
+                int8_t done = 0;
+
+                while(!done)
+                {
+                    char tens = '0' + track / 10;
+                    char ones = '0' + track % 10;
+
+                    ssd1306_putc(tens, 6*6,0);
+                    ssd1306_putc(ones, 7*6,0);
+
+                    uint8_t input;
+                    while(!(input = get_input()))
+                        ;
+
+                    switch(input)
+                    {
+                    case BUTTON_PRESS_UP:
+                    case BUTTON_HOLD_UP:
+                        if(track > 1)
+                            track--;
+                        break;
+
+                    case BUTTON_PRESS_DOWN:
+                    case BUTTON_HOLD_DOWN:
+                        if(track < len)
+                            track++;
+                        break;
+
+                    case BUTTON_PRESS_RIGHT:
+                        done = 1;
+                        break;
+
+                    case BUTTON_PRESS_LEFT:
+                        done = -1;
+                        break;
+
+                    }
+                }
+
+                if(done > 0) // Add track
+                {
+                    filename[6] = '0' + track / 10;
+                    filename[7] = '0' + track % 10;
+                    if(menu_playlist_info.num_items < 128)
+                    {
+                        eeprom_write_block(filename, (void*)(8 * menu_playlist_info.num_items), 8);
+                        menu_playlist_info.num_items++;
+                    }
+                }
+            }
+            break;
+
+
+        case MENU_PLAYLIST_EDIT_DELETE_TRACK:
+            for(;;)
+            {
+                res = menu_loop(&menu_playlist_info);
+                if(res & MENU_BACK_FLAG)
+                    break;
+
+                for(uint8_t i = res; i < menu_playlist_info.num_items; i++)
+                {
+                    uint8_t s[8];
+                    eeprom_read_block(s,(void*)((i+1)*8),8);
+                    eeprom_update_block(s,(void*)(i*8),8);
+                }
+
+                menu_playlist_info.num_items--;
+            }
+            break;
+
+        case MENU_PLAYLIST_EDIT_REORDER_TRACKS:
+            break;
+        }
+    }
+}
+
 int main()
 {
     io_init();
@@ -671,7 +831,33 @@ int main()
     sei();
 
     ssd1306_init();
-    ssd1306_splash();
+//    ssd1306_splash();
+    {
+        ssd1306_clear();
+
+        const struct ssd1306_frame_t frame = { .col_start = 0, .col_end = 63 , .row_start = 0, .row_end = 7, .offset = 0 };
+
+        ssd1306_setup_frame(frame);
+
+        i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
+        i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
+        i2c_write_P(paw_64x64, (uint16_t)64 * 8);
+
+        i2c_stop();
+
+        ssd1306_puts("NESSynth",64+32-6*8/2,2);
+        ssd1306_puts(XSTR(MAJOR_VERSION) "." XSTR(MINOR_VERSION),64+32-6*3/2,4);
+
+//        ssd1306_clear();
+
+
+        for(uint8_t i = 0; i < 60; i++)
+        {
+            ssd1306_puts_scroll("0123456789", 10, 1, 30, i);
+            _delay_ms(125);
+        }
+    }
+    _delay_ms(5000);
 
     log_init(LOG_I2C|LOG_BUF);
     spi_init();
@@ -691,15 +877,7 @@ int main()
 
 //    clear_inputs();
 
-    struct menu_info_t main_menu_info;
-    struct menu_info_t game_menu_info;
-    struct menu_info_t playlist_menu_info;
-    struct menu_info_t playlist_edit_menu_info;
-
-    menu_pgm_init(menu_main_entries, sizeof(menu_main_entries)/sizeof(menu_main_entries[0]), &main_menu_info);
-    menu_pgm_init(menu_playlist_edit_entries, sizeof(menu_playlist_edit_entries)/sizeof(menu_playlist_edit_entries[0]), &playlist_edit_menu_info);
-    menu_fat32_init(menu_name_cat, &game_menu_info);
-    menu_eeprom_init(&playlist_menu_info);
+    menu_init();
 
     _delay_ms(1125);
     reset_channels();
@@ -708,142 +886,20 @@ int main()
     {
         uint8_t res;
 
-        res = menu_loop(&main_menu_info);
+        res = menu_loop(&menu_main_info);
 
         switch(res)
         {
         case MENU_MAIN_SONGS_SORTED_BY_GAME:
-            for(;;)
-            {
-                res = menu_loop(&game_menu_info);
-                if(res & MENU_BACK_FLAG)
-                    break;
-
-                category_play(res);
-            }
+            menu_play_category_loop();
             break;
 
         case MENU_MAIN_PLAY_PLAYLIST:
-            for(;;)
-            {
-                res = menu_loop(&playlist_menu_info);
-                if(res & MENU_BACK_FLAG)
-                    break;
-
-                char filename[8];
-                eeprom_read_block(filename, (void*)(res*8), 8);
-
-                res = song_play(filename);
-
-            }
+            menu_play_playlist_loop();
             break;
 
         case MENU_MAIN_EDIT_PLAYLIST:
-            for(;;)
-            {
-                res = menu_loop(&playlist_edit_menu_info);
-                if(res & MENU_BACK_FLAG)
-                    break;
-
-                switch(res)
-                {
-                case MENU_PLAYLIST_EDIT_ADD_TRACK:
-                    for(;;)
-                    {
-                        res = menu_loop(&game_menu_info);
-                        if(res & MENU_BACK_FLAG)
-                            break;
-
-                        char filename[8];
-                        uint8_t len;
-
-                        category_read_info(res, filename, &len);
-
-                        uint8_t track = 1;
-
-                        ssd1306_clear();
-                        ssd1306_text_start(0,0);
-                        for(uint8_t i = 0; i < 8; i++)
-                        {
-                            ssd1306_text_putc(filename[i]);
-                        }
-                        ssd1306_text_end();
-
-                        int8_t done = 0;
-
-                        while(!done)
-                        {
-                            char tens = '0' + track / 10;
-                            char ones = '0' + track % 10;
-
-                            ssd1306_putc(tens, 6*6,0);
-                            ssd1306_putc(ones, 7*6,0);
-
-                            uint8_t input;
-                            while(!(input = get_input()))
-                                ;
-
-                            switch(input)
-                            {
-                            case BUTTON_PRESS_UP:
-                            case BUTTON_HOLD_UP:
-                                if(track > 1)
-                                    track--;
-                                break;
-
-                            case BUTTON_PRESS_DOWN:
-                            case BUTTON_HOLD_DOWN:
-                                if(track < len)
-                                    track++;
-                                break;
-
-                            case BUTTON_PRESS_RIGHT:
-                                done = 1;
-                                break;
-
-                            case BUTTON_PRESS_LEFT:
-                                done = -1;
-                                break;
-
-                            }
-                        }
-
-                        if(done > 0) // Add track
-                        {
-                            filename[6] = '0' + track / 10;
-                            filename[7] = '0' + track % 10;
-                            if(playlist_menu_info.num_items < 128)
-                            {
-                                eeprom_write_block(filename, (void*)(8 * playlist_menu_info.num_items), 8);
-                                playlist_menu_info.num_items++;
-                            }
-                        }
-                    }
-                    break;
-
-
-                case MENU_PLAYLIST_EDIT_DELETE_TRACK:
-                    for(;;)
-                    {
-                        res = menu_loop(&playlist_menu_info);
-                        if(res & MENU_BACK_FLAG)
-                            break;
-
-                        for(uint8_t i = res; i < playlist_menu_info.num_items; i++)
-                        {
-                            uint8_t s[8];
-                            eeprom_read_block(s,(void*)((i+1)*8),8);
-                            eeprom_update_block(s,(void*)(i*8),8);
-                        }
-
-                        playlist_menu_info.num_items--;
-                    }
-                    break;
-
-                case MENU_PLAYLIST_EDIT_REORDER_TRACKS:
-                    break;
-                }
-            }
+            menu_edit_playlist_loop();
             break;
 
         case MENU_MAIN_LOG:
