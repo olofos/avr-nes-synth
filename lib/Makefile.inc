@@ -22,7 +22,7 @@ AVRDUDE=avrdude
 
 RM=rm -f
 
-LIBSOURCES=logo-paw-64x64.c logo-paw-128x64.c fat32.c glcdfont.c log.c sd.c uart.c ssd1306.c ssd1306-console.c i2c-master.c i2c-slave.c
+LIBSOURCES=logo-paw-48x48.c logo-paw-64x64.c logo-paw-128x64.c fat32.c glcdfont.c log.c sd.c uart.c ssd1306.c ssd1306-console.c i2c-master.c i2c-slave.c
 
 LIBOBJECTS=$(LIBSOURCES:.c=.o)
 
