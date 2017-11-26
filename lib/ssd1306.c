@@ -31,22 +31,22 @@ const uint8_t ssd1306_init_seq[] PROGMEM = {
     0x00,
     // Display start line to 0
     OLED_CMD_SET_DISPLAY_START_LINE,
-  
+
     // Mirror the x-axis. In case you set it up such that the pins are north.
     // 0xA0, // - in case pins are south - default
     OLED_CMD_SET_SEGMENT_REMAP,
-    
+
     // Mirror the y-axis. In case you set it up such that the pins are north.
     // 0xC0, // - in case pins are south - default
     OLED_CMD_SET_COM_SCAN_MODE,
-    
+
     // Default - alternate COM pin map
     OLED_CMD_SET_COM_PIN_MAP,
     0x12,
     // set contrast
     OLED_CMD_SET_CONTRAST,
     0x00,
-  
+
     // Set display to enable rendering from GDDRAM (Graphic Display Data RAM)
     OLED_CMD_DISPLAY_RAM,
     // Normal mode!
@@ -125,7 +125,7 @@ void ssd1306_bitmap_P(const uint8_t *buf, uint8_t cols, uint8_t rows, uint8_t x,
     };
 
     ssd1306_setup_frame(frame);
-    
+
     i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
     i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
     i2c_write_P(buf, (uint16_t)cols * rows);
@@ -150,7 +150,7 @@ void ssd1306_clear()
     i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
     for(uint16_t i=0; i < 1024; i++)
     {
-	i2c_write_byte(0);
+        i2c_write_byte(0);
     }
     i2c_stop();
 }
@@ -166,7 +166,7 @@ void ssd1306_splash()
     i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
     i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
     i2c_write_P(paw_64x64, (uint16_t)64 * 8);
-  
+
     i2c_stop();
 
 }
@@ -224,8 +224,52 @@ void ssd1306_puts_P(const char* str, uint8_t x, uint8_t y)
 void ssd1306_putc(const char c, uint8_t x, uint8_t y)
 {
     ssd1306_text_start(x, y);
-    
+
     ssd1306_text_putc(c);
 
     ssd1306_text_end();
+}
+
+void ssd1306_puts_scroll(const char* str, uint8_t x, uint8_t y, int8_t w, uint8_t dx)
+{
+    const struct ssd1306_frame_t frame = { .col_start = x, .col_end = x+w, .row_start = y, .row_end = y, .offset = 0 };
+    ssd1306_setup_frame(frame);
+
+    i2c_start(OLED_I2C_ADDRESS, I2C_WRITE);
+    i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
+
+    while(dx >= 6 && *str)
+    {
+        str++;
+        dx -= 6;
+    }
+
+    i2c_write_P(&font[(5*(uint8_t)str[0]) + dx], 5-dx);
+    i2c_write_byte(0);
+
+    str++;
+    w -= 6-dx;
+
+    while(*str && w >= 6)
+    {
+        i2c_write_P(&font[5*(uint8_t)*str++], 5);
+        i2c_write_byte(0);
+
+        w -= 6;
+    }
+
+    if(*str)
+    {
+        i2c_write_P(&font[5*(uint8_t)*str], w);
+        w = 0;
+    }
+
+    while(w > 0)
+    {
+        i2c_write_byte(0);
+        w--;
+    }
+
+
+    i2c_stop();
 }
