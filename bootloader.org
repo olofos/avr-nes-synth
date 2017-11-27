@@ -31,7 +31,12 @@ used without any hardware changes.
       implement the [[http://www.atmel.com/images/doc2525.pdf][STK500 protocol]]. However, since the UART data
       comes through the IO-bridge, and the main controller is the I2C
       master, this would require a polling scheme to get the incoming
-      data.
+      data. Currently the IO-bridge only transmits button status, but
+      it would be straight forward to implement UART forwarding
+      functionality. In particular there could be a mode that could be
+      selected using an I2C command, which would change the INT pin to
+      be set as long as the UART ring buffer is non-empty, and which
+      replies to any transmit request with the received UART data.
 
    3. Reusing the ISP header of the main controller
 
