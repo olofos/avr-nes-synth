@@ -70,6 +70,12 @@ used without any hardware changes.
    the complement of this value. This allows us to check that the
    exact value transmitted from all four channels agrees.
 
+   We can also use the frame clock as a simple one-bit busy flag for
+   the channels. While the channels are busy writing to flash they
+   keep the flag low, and when they are done they release the
+   flag. This gives an easy way for the main controller to wait for
+   all the channels.
+
 ** Programming multiple channels
 
    We need to update the firmware of all four channels. There are two
@@ -94,3 +100,26 @@ used without any hardware changes.
       need to implement a more complicated communication
       protocol. However, an open drain protocol allows all four
       channels to communicate simultaneously.
+
+** Protocol
+
+   For communicating between the computer and the main controller we
+   will emulate [[https://github.com/Optiboot/optiboot][optiboot]], which in turn implements part of the STK500
+   protocol.
+
+   - STK_GET_PARAMETER
+     Valid parameters: 
+     + STK_SW_MINOR
+     + STK_SW_MAJOR
+   - STK_SET_DEVICE
+     Ignored
+   - STK_SET_DEVICE_EXT
+     Ignored
+   - STK_LOAD_ADDRESS
+   - STK_UNIVERSAL
+     Ignored
+   - STK_PROG_PAGE
+   - STK_READ_PAGE
+   - STK_READ_SIGN
+   - STK_LEAVE_PROGMODE
+   - Others (including STK_ENTER_PROGMODE)
