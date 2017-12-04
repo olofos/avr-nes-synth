@@ -4,6 +4,7 @@
 #include "../common-config.h"
 
 #define uart_tx_cbuf_LEN 256
+#define uart_rx_cbuf_LEN 256
 
 #define BAUD 38400UL
 

@@ -1,3 +1,5 @@
+#include <util/delay.h>
+
 #include "config.h"
 #include "io.h"
 #include "i2c-master.h"
@@ -16,7 +18,109 @@
 
 #define HOLD_TIME 3
 
-uint8_t get_input()
+void io_set_uart_mode(void)
+{
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_write_byte(IO_BRIDGE_TRANSMIT_UART);
+    i2c_stop();
+}
+
+void io_set_button_mode(void)
+{
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_write_byte(IO_BRIDGE_TRANSMIT_BUTTONS);
+    i2c_stop();
+}
+
+
+void io_uart_write_byte(uint8_t c)
+{
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
+    i2c_write_byte(c);
+    i2c_stop();
+}
+
+
+
+uint8_t io_uart_read_byte(void)
+{
+    for(;;)
+    {
+        i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+        uint8_t len = i2c_read_nak();
+        i2c_stop();
+
+        _delay_us(20);
+
+        if(len > 0)
+        {
+            i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+            i2c_read_ack();
+            uint8_t val = i2c_read_nak();
+            i2c_stop();
+
+            return val;
+        }
+    }
+}
+
+void io_uart_skip_bytes(uint8_t n)
+{
+    while(n)
+    {
+        io_uart_read_byte();
+        _delay_us(100);
+        n--;
+    }
+}
+
+#if 0
+void io_uart_skip_bytes(uint8_t n)
+{
+    while(n > 0)
+    {
+        i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+        uint8_t len = i2c_read_nak();
+        i2c_stop();
+
+        if(len > n)
+        {
+            len = n;
+        }
+
+        _delay_us(50);
+
+        if(len > 0)
+        {
+            set_high(PIN_LED);
+            i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+            set_low(PIN_LED);
+            while(len > 1)
+            {
+                i2c_read_ack();
+                n--;
+                len--;
+            }
+
+            i2c_read_nak();
+            i2c_stop();
+        }
+
+    }
+}
+#endif
+
+void io_uart_flush(void)
+{
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+    uint8_t len = i2c_read_nak();
+    i2c_stop();
+    io_uart_skip_bytes(len);
+}
+
+
+uint8_t get_input(void)
 {
     static uint16_t input_time;
     static uint8_t prev;
