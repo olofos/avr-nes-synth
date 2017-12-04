@@ -3,4 +3,10 @@
 
 #define I2C_IO_BRIDGE_ADDRESS 0x08
 
+
+#define IO_BRIDGE_TRANSMIT_BUTTONS 0x40
+#define IO_BRIDGE_TRANSMIT_UART    0x41
+
+#define IO_BRIDGE_RECEIVE_UART     0x80
+
 #endif
