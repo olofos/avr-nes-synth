@@ -8,12 +8,11 @@
 
 #ifdef SCL_CLOCK
 
-
-void i2c_master_init()
+void i2c_master_init(void)
 {
     // no prescaler
     TWSR = 0;
-    
+
     // must be > 10 for stable operation
     TWBR = ((F_CPU/SCL_CLOCK)-16)/2;
 
@@ -23,120 +22,140 @@ void i2c_master_init()
 }
 
 
-static inline void i2c_wait_for_complete()
+static inline void i2c_wait_for_complete(void)
 {
-    while(!(TWCR & (1<<TWINT)))
-	;
+    while(!(TWCR & _BV(TWINT)))
+        ;
+}
+
+static inline void i2c_wait_for_stop(void)
+{
+    while(TWCR & _BV(TWSTO))
+        ;
 }
 
 
-uint8_t i2c_start(uint8_t address, uint8_t rw)
+static uint8_t i2c_send_start(void)
 {
     uint8_t   twst;
 
     // send START condition
-    TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN);
+    TWCR = _BV(TWINT) | _BV(TWSTA) | _BV(TWEN);
 
     // wait until transmission completed
     i2c_wait_for_complete();
 
     // check value of TWI Status Register
     twst = TW_STATUS;
-    
-    if ((twst != TW_START) && (twst != TW_REP_START))
-	return I2C_ERROR;
+
+    if((twst != TW_START) && (twst != TW_REP_START))
+        return I2C_ERROR;
+
+    return I2C_OK;
+}
+
+static uint8_t i2c_send_address(uint8_t address, uint8_t rw)
+{
+    uint8_t   twst;
 
     // send device address
     TWDR = (address << 1) | rw;
-    TWCR = (1<<TWINT) | (1<<TWEN);
+    TWCR = _BV(TWINT) | _BV(TWEN);
 
     // wail until transmission completed and ACK/NACK has been received
     i2c_wait_for_complete();
 
     // check value of TWI Status Register
     twst = TW_STATUS;
-    if ( (twst != TW_MT_SLA_ACK) && (twst != TW_MR_SLA_ACK) )
-	return I2C_ERROR;
 
-    return I2C_OK;
+    switch(twst)
+    {
+    case TW_MT_SLA_NACK:
+    case TW_MR_DATA_NACK:
+        // device busy, send stop condition to terminate write operation
+        i2c_stop();
+        return I2C_BUSY;
+    case TW_MT_SLA_ACK:
+    case TW_MR_SLA_ACK:
+        return I2C_OK;
+    default:
+        return I2C_ERROR;
+    }
+}
 
+uint8_t i2c_start(uint8_t address, uint8_t rw)
+{
+    if(i2c_send_start() != I2C_OK)
+    {
+        return I2C_ERROR;
+    }
+
+    return i2c_send_address(address, rw);
 }
 
 
-void i2c_start_wait(uint8_t address, uint8_t rw)
+uint8_t i2c_start_wait(uint8_t address, uint8_t rw)
 {
-    uint8_t   twst;
+    uint8_t ret;
 
     for(;;)
     {
-	// send START condition
-	TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN);
-    
-    	// wait until transmission completed
-	i2c_wait_for_complete();
-	
-    	// check value of TWI Status Register.
-    	twst = TW_STATUS;
-    	if((twst != TW_START) && (twst != TW_REP_START))
-	    continue;
-    
-    	// send device address
-    	TWDR = (address << 1) | rw;
-    	TWCR = (1<<TWINT) | (1<<TWEN);
-    
-    	// wail until transmission completed
-	i2c_wait_for_complete();
-    
-    	// check value of TWI Status Register.
-    	twst = TW_STATUS;
-    	if((twst == TW_MT_SLA_NACK) || (twst ==TW_MR_DATA_NACK)) 
-    	{    	    
-    	    // device busy, send stop condition to terminate write operation
-	    TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWSTO);
-	        
-	    // wait until stop condition is executed and bus released
-	    while(TWCR & (1<<TWSTO));
-	        
-    	    continue;
-    	}
-    	break;
+        ret = i2c_send_start();
+
+        if(ret == I2C_OK)
+        {
+            ret = i2c_send_address(address, rw);
+
+            if(ret != I2C_BUSY)
+            {
+                break;
+            }
+        }
     }
+
+    return ret;
 }
 
 
 uint8_t i2c_rep_start(uint8_t address, uint8_t rw)
 {
-    return i2c_start( address , rw );
+    return i2c_start(address , rw);
 }
 
 
 void i2c_stop(void)
 {
-    /* send stop condition */
-    TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWSTO);
-	
+    // send stop condition
+    TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWSTO);
+
     // wait until stop condition is executed and bus released
-    while(TWCR & (1<<TWSTO));
+    i2c_wait_for_stop();
 }
 
 
 uint8_t i2c_write_byte(uint8_t data)
-{	
+{
     uint8_t   twst;
-    
+
     // send data to the previously addressed device
     TWDR = data;
-    TWCR = (1<<TWINT) | (1<<TWEN);
+    TWCR = _BV(TWINT) | _BV(TWEN);
 
     // wait until transmission completed
     i2c_wait_for_complete();
 
     // check value of TWI Status Register
     twst = TW_STATUS;
-    if( twst != TW_MT_DATA_ACK)
-	return I2C_ERROR;
 
-    return I2C_OK;
+    switch(twst)
+    {
+    case TW_MT_DATA_ACK:
+        return I2C_OK;
+    case TW_MT_DATA_NACK:
+        return I2C_DONE;
+    default:
+        return I2C_ERROR;
+    }
 }
 
 
@@ -146,8 +165,8 @@ uint16_t i2c_write(const uint8_t *data, uint16_t len)
 
     while((len > 0) && (status == I2C_OK))
     {
-	status = i2c_write_byte(*data++);
-	len--;
+        status = i2c_write_byte(*data++);
+        len--;
     }
 
     return len;
@@ -159,8 +178,8 @@ uint16_t i2c_write_P(const uint8_t *data, uint16_t len)
 
     while((len > 0) && (status == I2C_OK))
     {
-	status = i2c_write_byte(pgm_read_byte(data++));
-	len--;
+        status = i2c_write_byte(pgm_read_byte(data++));
+        len--;
     }
 
     return len;
@@ -169,7 +188,7 @@ uint16_t i2c_write_P(const uint8_t *data, uint16_t len)
 
 uint8_t i2c_read_ack(void)
 {
-    TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
+    TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWEA);
     i2c_wait_for_complete();
 
     return TWDR;
@@ -177,9 +196,9 @@ uint8_t i2c_read_ack(void)
 
 uint8_t i2c_read_nak(void)
 {
-    TWCR = (1<<TWINT) | (1<<TWEN);
+    TWCR = _BV(TWINT) | _BV(TWEN);
     i2c_wait_for_complete();
-    
+
     return TWDR;
 }
 
