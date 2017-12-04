@@ -15,10 +15,10 @@ void i2c_slave_init(uint8_t address);
 
 // To be implemented by the slave
 
-extern void i2c_receive_start();
-extern void i2c_receive(uint8_t);
-extern void i2c_receive_stop();
-extern void i2c_transmit_start();
-extern uint8_t i2c_transmit_data();
+extern uint8_t i2c_receive_start(void);
+extern uint8_t i2c_receive(uint8_t);
+extern void i2c_receive_stop(void);
+extern void i2c_transmit_start(void);
+extern uint8_t i2c_transmit_data(uint8_t*);
 
 #endif
