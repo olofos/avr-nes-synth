@@ -80,7 +80,7 @@ static inline void timer0_stop();
 static inline void timer2_start();
 static inline void timer2_stop();
 
-void error_led_loop();
+void error_led_loop(uint8_t n);
 
 void i2c_scan();
 
@@ -342,7 +342,7 @@ void song_open(const char* filename)
         log_puts(filename);
         log_puts("\"\n");
 
-        error_led_loop();
+        error_led_loop(3);
     }
 }
 
@@ -353,25 +353,19 @@ void song_stop(void)
 }
 
 
-void error_led_loop(void)
+void error_led_loop(uint8_t n)
 {
     for(;;)
     {
-        set_high(PIN_LED);
-        _delay_ms(125);
-        set_low(PIN_LED);
-        _delay_ms(125);
+        for(uint8_t i = 0; i < n; i++)
+        {
+            set_high(PIN_LED);
+            _delay_ms(125);
+            set_low(PIN_LED);
+            _delay_ms(250);
+        }
 
-        set_high(PIN_LED);
-        _delay_ms(125);
-        set_low(PIN_LED);
-        _delay_ms(125);
-
-        set_high(PIN_LED);
-        _delay_ms(125);
-        set_low(PIN_LED);
-
-        _delay_ms(375);
+        _delay_ms(500);
     }
 }
 
@@ -936,15 +930,13 @@ int main(void)
 
     i2c_scan();
 
-    _delay_ms(1);
-
     if(is_high(PIN_SD_CD))
     {
         log_puts_P(PSTR("SD card detected\n"));
     } else {
         log_puts_P(PSTR("No SD card detected\n"));
 
-        error_led_loop();
+        error_led_loop(2);
     }
     sd_init();
     fat32_init();
