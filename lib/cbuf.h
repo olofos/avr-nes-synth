@@ -34,5 +34,7 @@ c = cbuf_pop(my_cbuf);
 
 #define cbuf_empty(cbuf) ( cbuf_len(cbuf) == 0 )
 
+#define cbuf_peek(cbuf) (cbuf.buf)[ cbuf.tail & ((cbuf##_LEN) -1 ) ]
+
 
 #endif
