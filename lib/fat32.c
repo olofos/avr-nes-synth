@@ -42,19 +42,19 @@ struct fat32_file_t
 struct fat32_file_t fat32_file;
 
 
-static uint32_t fat32_read_partition_table()
+static uint32_t fat32_read_partition_table(void)
 {
     sd_begin_sector(0);
     sd_skip_bytes(0x1BE); // Skip to first partition entry
 
     uint8_t i;
     uint32_t partition_start;
-        
+
     for(i = 0; i < 4; i++)
     {
-        sd_skip_bytes(4); // Status + CHS address of first absolute sector 
+        sd_skip_bytes(4); // Status + CHS address of first absolute sector
         uint8_t partition_type = sd_read_uint8();
-        sd_skip_bytes(3); // CHS address of last absolute sector 
+        sd_skip_bytes(3); // CHS address of last absolute sector
         partition_start = sd_read_uint32();
         uint32_t length_sectors __attribute__((__unused__)) = sd_read_uint32();
 
@@ -120,7 +120,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
     uint16_t reserved_sectors = sd_read_uint16();
     uint8_t number_of_fats = sd_read_uint8();
     sd_skip_bytes(19);
-    
+
     uint32_t fat_size = sd_read_uint32(); // sectors per FAT
     sd_skip_bytes(4);
     fat32_data.root_dir_cluster = sd_read_uint32();
@@ -141,25 +141,25 @@ static void fat32_read_boot_sector(uint32_t partition_start)
         log_puts_P(PSTR("\n"));
     }
 
-#if FAT32_DEBUG    
+#if FAT32_DEBUG
     log_puts_P(PSTR("sector_size: "));
     log_put_uint16(sector_size);
-    
+
     log_puts_P(PSTR("\nsectors_per_cluster: 0x"));
     log_put_uint8_hex(fat32_data.sectors_per_cluster);
-    
+
     log_puts_P(PSTR("\nreserved_sectors: 0x"));
     log_put_uint16_hex(reserved_sectors);
-    
+
     log_puts_P(PSTR("\nnumber_of_fats: 0x"));
     log_put_uint8_hex(number_of_fats);
-    
+
     log_puts_P(PSTR("\nfat_size: 0x"));
     log_put_uint32_hex(fat_size);
-    
+
     log_puts_P(PSTR("\nroot_dir_cluster: 0x"));
     log_put_uint32_hex(fat32_data.root_dir_cluster);
-    
+
     log_puts_P(PSTR("\nboot_sector_signature: 0x"));
     log_put_uint16_hex(boot_sector_signature);
 
@@ -167,7 +167,7 @@ static void fat32_read_boot_sector(uint32_t partition_start)
 
     log_puts_P(PSTR("\nFAT1 sector: 0x"));
     log_put_uint32_hex(fat32_data.fat_start);
-    
+
     log_puts_P(PSTR("\nData block starts at: 0x"));
     log_put_uint32_hex(fat32_data.data_start);
 
@@ -188,14 +188,14 @@ static void fat32_open_cluster(uint32_t cluster)
     fat32_data.current_cluster = cluster;
 }
 
-void fat32_open_root_dir()
+void fat32_open_root_dir(void)
 {
     fat32_open_cluster(fat32_data.root_dir_cluster);
     fat32_file.bytes_left = 0x0FFFFFFF;
 }
 
 
-void fat32_init()
+void fat32_init(void)
 {
     uint32_t partition_start = fat32_read_partition_table();
     fat32_read_boot_sector(partition_start);
@@ -228,7 +228,7 @@ static uint32_t fat32_get_next_cluster_from_fat(const uint32_t cluster)
     return next_cluster;
 }
 
-static uint32_t fat32_next_cluster()
+static uint32_t fat32_next_cluster(void)
 {
     if(fat32_file.cluster_num < CLUSTER_CACHE_SIZE )
     {
@@ -251,17 +251,17 @@ uint16_t fat32_read(void *sd_buf, uint16_t len)
             sd_end_sector();
 
             fat32_data.sector_in_cluster++;
-            
+
             if(fat32_data.sector_in_cluster == fat32_data.sectors_per_cluster)
             {
                 uint32_t next_cluster = fat32_next_cluster();
-                
+
                 if((next_cluster & END_CLUSTER_MASK) == END_CLUSTER_MASK)
                 {
                     fat32_data.sector_in_cluster--;
                     break;
                 }
-                
+
                 fat32_data.sector_in_cluster = 0;
                 fat32_data.current_cluster = next_cluster;
             }
@@ -295,7 +295,7 @@ uint16_t fat32_skip_until(uint8_t c)
             break;
         }
     }
-    
+
     return len;
 }
 
@@ -414,16 +414,16 @@ uint8_t fat32_open_file(const char *filename, const char *ext)
 #endif
 
     fat32_create_cluster_cache(fat32_file.cluster);
-    
+
     fat32_open_cluster(fat32_file.cluster);
-    
+
     fat32_file.bytes_left = fat32_file.size;
     fat32_file.cluster_num = 0;
-    
+
     return 1;
 }
 
-void fat32_close_file()
+void fat32_close_file(void)
 {
     fat32_file.bytes_left = 0;
     sd_end_sector();
@@ -471,7 +471,7 @@ void fat32_seek(uint16_t len)
 }
 
 
-void fat32_list_dir()
+void fat32_list_dir(void)
 {
     char filename[12];
     uint8_t attrib;
@@ -512,6 +512,6 @@ void fat32_list_dir()
         }
 
         i++;
-        
+
     } while(filename[0]);
 }

@@ -112,7 +112,7 @@ void menu_fat32_init(const char* name_p, struct menu_info_t *menu_info)
     fat32_open_root_dir();
     fat32_open_file(filename, MENU_EXT);
     log_puts("Reading menu\n");
-    
+
     fat32_seek(0);
 
     char numstr[2];
@@ -135,7 +135,7 @@ static void menu_fat32_find_entry(struct menu_info_t *menu_info, uint8_t num)
 {
     fat32_seek(0);
 
-    fat32_skip_until('\n');        
+    fat32_skip_until('\n');
 
     for(uint8_t i = 0; i < menu_info->top; i++)
     {
@@ -267,14 +267,14 @@ void menu_redraw(struct menu_info_t *menu_info)
             for(uint8_t j = 0; j < SSD1306_LINE_WIDTH-1; j++)
             {
                 ssd1306_text_putc(' ');
-            }          
+            }
         }
 
         ssd1306_text_end();
     }
 }
 
-uint8_t menu_handle_input()
+uint8_t menu_handle_input(void)
 {
     switch(get_input())
     {
@@ -288,11 +288,11 @@ uint8_t menu_handle_input()
 
     case BUTTON_PRESS_RIGHT:
         return MENU_FORW;
-        
+
     case BUTTON_PRESS_LEFT:
         return MENU_BACK;
     }
-    
+
     return 0;
 }
 
@@ -331,12 +331,12 @@ uint8_t menu_loop(struct menu_info_t *menu_info)
 
 
     menu_info->ops->loop_begin(menu_info);
-    
+
     menu_redraw(menu_info);
 
     uint8_t done = 0;
     uint8_t res;
-    
+
     while(!done)
     {
         switch(menu_handle_input())
@@ -361,7 +361,7 @@ uint8_t menu_loop(struct menu_info_t *menu_info)
             done = 1;
             break;
 
-        }    
+        }
     }
 
     menu_info->ops->loop_end(menu_info);

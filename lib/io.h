@@ -30,7 +30,7 @@ inline uint8_t SPI_transfer(const uint8_t data)
     SPDR = data;
 
     // Wait for transfer to finish
-    
+
     while(!(SPSR & _BV(SPIF)))
     {
     }

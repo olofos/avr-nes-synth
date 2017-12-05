@@ -72,7 +72,7 @@ const uint8_t ssd1306_init_seq[] PROGMEM = {
 
 static const struct ssd1306_frame_t full_frame = { .col_start = 0x00, .col_end = 0x7F , .row_start = 0x00, .row_end = 0x07, .offset = 0x00 };
 
-void ssd1306_init()
+void ssd1306_init(void)
 {
     // Begin the I2C comm with SSD1306's address (SLA+Write)
     i2c_start_wait(OLED_I2C_ADDRESS, I2C_WRITE);
@@ -98,7 +98,7 @@ void ssd1306_setup_frame(const struct ssd1306_frame_t frame)
 }
 
 
-void ssd1306_bitmap_begin()
+void ssd1306_bitmap_begin(void)
 {
     ssd1306_setup_frame(full_frame);
 
@@ -108,7 +108,7 @@ void ssd1306_bitmap_begin()
 
 
 
-void ssd1306_bitmap_end()
+void ssd1306_bitmap_end(void)
 {
     i2c_stop();
 }
@@ -142,7 +142,7 @@ void ssd1306_bitmap_full_P(const uint8_t *buf)
     i2c_stop();
 }
 
-void ssd1306_clear()
+void ssd1306_clear(void)
 {
     ssd1306_setup_frame(full_frame);
 
@@ -155,7 +155,7 @@ void ssd1306_clear()
     i2c_stop();
 }
 
-void ssd1306_splash()
+void ssd1306_splash(void)
 {
     ssd1306_clear();
 
@@ -189,7 +189,7 @@ inline void ssd1306_text_start(uint8_t x, uint8_t y)
     i2c_write_byte(OLED_CONTROL_BYTE_DATA_STREAM);
 }
 
-inline void ssd1306_text_end()
+inline void ssd1306_text_end(void)
 {
     i2c_stop();
 }

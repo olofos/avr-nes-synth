@@ -43,7 +43,7 @@ void uart_puts_nowait(const char *str);
 
 char uart_getc(void);
 
-inline uint8_t uart_available()
+inline uint8_t uart_available(void)
 {
     return cbuf_len(uart_rx_cbuf);
 }

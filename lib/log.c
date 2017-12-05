@@ -23,7 +23,7 @@
 void log_i2c_putc(const char c)
 {
     i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-    i2c_write_byte(0xFF);
+    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
     i2c_write_byte(c);
     i2c_stop();
 }
@@ -31,7 +31,7 @@ void log_i2c_putc(const char c)
 void log_i2c_puts(const char *str)
 {
     i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-    i2c_write_byte(0xFF);
+    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
 
     while(*str)
     {
@@ -44,7 +44,7 @@ void log_i2c_puts(const char *str)
 void log_i2c_puts_P(const char *str)
 {
     i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-    i2c_write_byte(0xFF);
+    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
 
     uint8_t c;
 
@@ -64,7 +64,7 @@ char log_buf[LOG_BUF_LEN];
 uint8_t log_buf_pos;
 uint8_t log_buf_line_len;
 
-void log_buf_init()
+void log_buf_init(void)
 {
     log_buf_pos = 0;
     log_buf_line_len = 0;
@@ -90,7 +90,7 @@ void log_buf_putc(const char c)
     }
 }
 
-uint8_t log_buf_count_lines()
+uint8_t log_buf_count_lines(void)
 {
     uint8_t pos = log_buf_pos;
     uint8_t len = LOG_BUF_LEN-1;
@@ -164,7 +164,7 @@ void log_enable(uint8_t mask)
 
     if(mask & LOG_UART)
     {
-	log_puts("Enabling log to UART\n");
+        log_puts("Enabling log to UART\n");
     }
 
 #endif
@@ -172,12 +172,12 @@ void log_enable(uint8_t mask)
 #ifdef LOG_USE_SSD1306
     if(mask & LOG_SSD1306)
     {
-	ssd1306_console_init();
+        ssd1306_console_init();
     }
 
     if(mask & LOG_SSD1306)
     {
-	log_puts("Enabling log to SSD1306\n");
+        log_puts("Enabling log to SSD1306\n");
     }
 
 #endif
@@ -189,7 +189,7 @@ void log_enable(uint8_t mask)
 
     if(mask & LOG_I2C)
     {
-	log_puts("Enabling log to I2C\n");
+        log_puts("Enabling log to I2C\n");
     }
 #endif
 
@@ -211,21 +211,21 @@ void log_disable(uint8_t mask)
 #ifdef LOG_UART
     if(mask & LOG_UART)
     {
-	log_puts("Disabling log to UART\n");
+        log_puts("Disabling log to UART\n");
     }
 #endif
 
 #ifdef LOG_USE_SSD1306
     if(mask & LOG_SSD1306)
     {
-	log_puts("Disabling log to OLED\n");
+        log_puts("Disabling log to OLED\n");
     }
 #endif
 
 #ifdef LOG_USE_I2C
     if(mask & LOG_I2C)
     {
-	log_puts("Disabling log to I2C\n");
+        log_puts("Disabling log to I2C\n");
     }
 #endif
 
@@ -244,14 +244,14 @@ void log_putc(const char c)
 #ifdef LOG_USE_UART
     if(log_mask & LOG_UART)
     {
-	uart_putc(c);
+        uart_putc(c);
     }
 #endif
 
 #ifdef LOG_USE_SSD1306
     if(log_mask & LOG_SSD1306)
     {
-	ssd1306_console_putc(c);
+        ssd1306_console_putc(c);
     }
 #endif
 
@@ -275,14 +275,14 @@ void log_puts(const char* str)
 #ifdef LOG_USE_UART
     if(log_mask & LOG_UART)
     {
-	uart_puts(str);
+        uart_puts(str);
     }
 #endif
 
 #ifdef LOG_USE_SSD1306
     if(log_mask & LOG_SSD1306)
     {
-	ssd1306_console_puts(str);
+        ssd1306_console_puts(str);
     }
 #endif
 
@@ -309,14 +309,14 @@ void log_puts_P(const char* str)
 #ifdef LOG_USE_UART
     if(log_mask & LOG_UART)
     {
-	uart_puts_P(str);
+        uart_puts_P(str);
     }
 #endif
 
 #ifdef LOG_USE_SSD1306
     if(log_mask & LOG_SSD1306)
     {
-	ssd1306_console_puts_P(str);
+        ssd1306_console_puts_P(str);
     }
 #endif
 

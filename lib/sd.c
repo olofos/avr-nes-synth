@@ -14,14 +14,14 @@
 #ifdef PIN_SD_CS
 
 
-typedef struct 
+typedef struct
 {
     uint16_t sector_bytes_left;
 } sd_data_t;
 
 sd_data_t sd_data;
 
-uint8_t sd_sector_done()
+uint8_t sd_sector_done(void)
 {
     return sd_data.sector_bytes_left == 0;
 }
@@ -38,7 +38,7 @@ void sd_begin_sector(uint32_t sector)
     sd_data.sector_bytes_left = 512;
 }
 
-void sd_end_sector()
+void sd_end_sector(void)
 {
     while(sd_data.sector_bytes_left)
     {
@@ -74,7 +74,7 @@ uint8_t sd_command(uint8_t cmd, uint32_t arg, uint8_t crc)
     return ret;
 }
 
-uint32_t sd_read_uint32()
+uint32_t sd_read_uint32(void)
 {
     uint8_t byte0 = SPI_transfer(0xFF);
     uint8_t byte1 = SPI_transfer(0xFF);
@@ -85,7 +85,7 @@ uint32_t sd_read_uint32()
     return ((uint32_t) byte3 << 24) | ((uint32_t) byte2 << 16) | ((uint32_t) byte1 << 8) | byte0;
 }
 
-uint16_t sd_read_uint16()
+uint16_t sd_read_uint16(void)
 {
     uint8_t byte0 = SPI_transfer(0xFF);
     uint8_t byte1 = SPI_transfer(0xFF);
@@ -95,7 +95,7 @@ uint16_t sd_read_uint16()
     return (byte1 << 8) | byte0;
 }
 
-uint8_t sd_read_uint8()
+uint8_t sd_read_uint8(void)
 {
     uint8_t byte0 = SPI_transfer(0xFF);
 
@@ -113,7 +113,7 @@ void sd_skip_bytes(uint16_t bytes)
 }
 
 
-void sd_debug_print_16_bytes()
+void sd_debug_print_16_bytes(void)
 {
     uint8_t buf[16];
 
@@ -136,7 +136,7 @@ void sd_debug_print_16_bytes()
 }
 
 
-void sd_init()
+void sd_init(void)
 {
     set_high(PIN_SD_CS);
 
@@ -152,7 +152,7 @@ void sd_init()
     {
         _delay_us(100);
     }
-    
+
     sd_command( 8, 0x000001AA, 0x87);
 
     sd_read_uint32();
@@ -164,7 +164,7 @@ void sd_init()
 
         if(ret == 0)
             break;
-        
+
         _delay_ms(25);
     }
 

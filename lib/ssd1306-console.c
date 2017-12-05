@@ -17,7 +17,7 @@ static uint8_t console_current_row;
 #define CONSOLE_LINE_LENGTH 21
 
 
-void ssd1306_console_init()
+void ssd1306_console_init(void)
 {
     ssd1306_clear();
 
@@ -25,7 +25,7 @@ void ssd1306_console_init()
     console_current_col = 0;
 }
 
-static void console_line_start()
+static void console_line_start(void)
 {
     const struct ssd1306_frame_t frame = {
         .col_start = 0x01 + console_current_col * 6,
@@ -45,11 +45,11 @@ static inline void print_spaces(uint8_t n)
 {
     for(uint8_t i = 0; i < 6*n; i++)
     {
-	i2c_write_byte(0);
+        i2c_write_byte(0);
     }
 }
 
-static void console_line_end()
+static void console_line_end(void)
 {
     print_spaces(CONSOLE_LINE_LENGTH - console_current_col);
     i2c_stop();
@@ -58,12 +58,12 @@ static void console_line_end()
 static void console_line(const char *str, uint8_t len)
 {
     console_line_start();
-    
+
     for(uint8_t i = 0; i < len; i++)
     {
-	ssd1306_text_putc(str[i]);
+        ssd1306_text_putc(str[i]);
     }
-    
+
     console_current_col += len;
 
     console_line_end();
@@ -73,10 +73,10 @@ static void console_line(const char *str, uint8_t len)
 static void console_line_P(const char *str, uint8_t len)
 {
     console_line_start();
-    
+
     for(uint8_t i = 0; i < len; i++)
     {
-	ssd1306_text_putc(pgm_read_byte(&str[i]));
+        ssd1306_text_putc(pgm_read_byte(&str[i]));
     }
 
     console_current_col += len;
@@ -96,28 +96,28 @@ void ssd1306_console_puts(const char* str)
 {
     while(*str)
     {
-	uint8_t len = 0;
+        uint8_t len = 0;
 
-	while(str[len] && (str[len] != '\n') && (len < CONSOLE_LINE_LENGTH - console_current_col))
-	{
-	    len++;
-	}
+        while(str[len] && (str[len] != '\n') && (len < CONSOLE_LINE_LENGTH - console_current_col))
+        {
+            len++;
+        }
 
-	console_line(str, len);
-	
-	str += len;
-	
-	if(*str == '\n')
-	{
-	    str++;
-	    console_current_row++;
-	    console_current_col=0;
-	} else if(console_current_col >= CONSOLE_LINE_LENGTH)
+        console_line(str, len);
+
+        str += len;
+
+        if(*str == '\n')
+        {
+            str++;
+            console_current_row++;
+            console_current_col=0;
+        } else if(console_current_col >= CONSOLE_LINE_LENGTH)
         {
             console_current_row++;
             console_current_col = 0;
-	}
-    }    
+        }
+    }
 }
 
 
@@ -125,28 +125,28 @@ void ssd1306_console_puts_P(const char* str)
 {
     while(pgm_read_byte(str))
     {
-	uint8_t len = 0;
-	uint8_t c;
-	while((c = pgm_read_byte(&str[len])) && (c != '\n') && (len < CONSOLE_LINE_LENGTH - console_current_col))
-	{
-	    len++;
-	}
+        uint8_t len = 0;
+        uint8_t c;
+        while((c = pgm_read_byte(&str[len])) && (c != '\n') && (len < CONSOLE_LINE_LENGTH - console_current_col))
+        {
+            len++;
+        }
 
-	console_line_P(str, len);
-	
-	str += len;
-	
-	if(c == '\n')
-	{
-	    str++;
-	    console_current_row++;
-	    console_current_col=0;
-	} else {
-	    if(console_current_col >= CONSOLE_LINE_LENGTH)
-	    {
-		console_current_row++;
-		console_current_col = 0;
-	    }
-	}
-    }    
+        console_line_P(str, len);
+
+        str += len;
+
+        if(c == '\n')
+        {
+            str++;
+            console_current_row++;
+            console_current_col=0;
+        } else {
+            if(console_current_col >= CONSOLE_LINE_LENGTH)
+            {
+                console_current_row++;
+                console_current_col = 0;
+            }
+        }
+    }
 }

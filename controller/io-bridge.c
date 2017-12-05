@@ -124,7 +124,7 @@ uint8_t get_input(void)
 {
     static uint16_t input_time;
     static uint8_t prev;
-    
+
     uint8_t in = 0;
     if(is_high(PIN_IO_INT))
     {
@@ -180,6 +180,6 @@ uint8_t get_input(void)
             }
         }
     }
-    
+
     return 0;
 }

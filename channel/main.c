@@ -349,7 +349,7 @@ void write_reg_noise(uint8_t address, uint8_t val)
 
 static uint8_t frame_counter;
 
-static void frame_update_length_counter()
+static void frame_update_length_counter(void)
 {
     if(!channel.length_counter_halt_flag && channel_length_counter > 0)
     {
@@ -357,7 +357,7 @@ static void frame_update_length_counter()
     }
 }
 
-static void frame_update_sweep()
+static void frame_update_sweep(void)
 {
     int16_t delta = channel.period >> channel.sweep_shift;
 
@@ -396,7 +396,7 @@ static void frame_update_sweep()
     }
 }
 
-static void frame_update_envelope()
+static void frame_update_envelope(void)
 {
     if(channel.env_reload_flag)
     {
@@ -419,7 +419,7 @@ static void frame_update_envelope()
     }
 }
 
-void frame_update_sq()
+void frame_update_sq(void)
 {
     if(frame_counter++ & 0x01) // clock length counters and sweep units
     {
@@ -439,7 +439,7 @@ void frame_update_sq()
     }
 }
 
-void frame_update_noise()
+void frame_update_noise(void)
 {
     if(frame_counter++ & 0x01) // clock length counters
     {
@@ -464,7 +464,7 @@ void frame_update_noise()
 }
 
 
-void frame_update_tri()
+void frame_update_tri(void)
 {
     if(frame_counter++ & 0x01) // clock length counters
     {
@@ -490,7 +490,7 @@ void (*write_reg)(uint8_t address, uint8_t val);
 void (*frame_update)();
 
 
-void io_init()
+void io_init(void)
 {
     set_outputs(PINS_DAC);
 
@@ -512,21 +512,21 @@ void io_init()
     enable_pullup(PIN_CONF1);
 }
 
-void timers_init()
+void timers_init(void)
 {
     TCCR1A = 0;
     TCCR1B = _BV(WGM12);  // Mode 4, CTC on OCR1A
     TIMSK1 = _BV(OCIE1A); // Set interrupt on compare match
 }
 
-void interrupts_init()
+void interrupts_init(void)
 {
     PCICR = _BV(PCIE1) | _BV(PCIE0); // Enable PCI0 and PCI1
     PCMSK0 = _BV(PCINT0);  // Enable DCLK interrupt
     PCMSK1 = _BV(PCINT13); // Enable FCLK interrupt
 }
 
-void read_conf()
+void read_conf(void)
 {
     uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
@@ -562,7 +562,7 @@ void read_conf()
     }
 }
 
-void blink_conf()
+void blink_conf(void)
 {
     uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
@@ -575,7 +575,7 @@ void blink_conf()
     } while(conf--);
 }
 
-int main()
+int main(void)
 {
     io_init();
     timers_init();

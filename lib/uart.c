@@ -25,7 +25,7 @@ void uart_init(void)
 #else
     UCSR0A &= ~(_BV(U2X0));
 #endif
-    
+
     UCSR0B|= _BV(RXEN0) | _BV(TXEN0);   // enable receiver and transmitter
     UCSR0C|= _BV(UCSZ01) | _BV(UCSZ00); // asynchronous, 8bit, 1 stop bit, no parity
 
@@ -50,8 +50,8 @@ void uart_puts(const char *str)
 {
     while(*str)
     {
-	if(*str == '\n')
-	    uart_putc('\r');
+        if(*str == '\n')
+            uart_putc('\r');
         uart_putc(*str++);
     }
 }
@@ -61,7 +61,7 @@ void uart_putc_nowait(char c)
 {
     if(cbuf_full(uart_tx_cbuf))
         cbuf_pop(uart_tx_cbuf);
-    
+
     cbuf_push(uart_tx_cbuf, c);
 
     UCSR0B |= _BV(UDRIE0); // enable UDRE Interrupt
@@ -72,8 +72,8 @@ void uart_puts_nowait(const char *str)
 {
     while(*str)
     {
-	if(*str == '\n')
-	    uart_putc_nowait('\r');
+        if(*str == '\n')
+            uart_putc_nowait('\r');
         uart_putc_nowait(*str++);
     }
 }
@@ -81,11 +81,11 @@ void uart_puts_nowait(const char *str)
 void uart_puts_P(const char *progmem_s)
 {
     char c;
-    
+
     while((c = pgm_read_byte(progmem_s++)))
     {
-	if(c == '\n')
-	    uart_putc('\r');
+        if(c == '\n')
+            uart_putc('\r');
 
         uart_putc(c);
     }
@@ -111,7 +111,7 @@ ISR(USART_RX_vect) {
 
 ISR(USART_UDRE_vect)
 {
-    if(cbuf_len(uart_tx_cbuf))
+    if(!cbuf_empty(uart_tx_cbuf))
     {
         UDR0 = cbuf_pop(uart_tx_cbuf);
     } else {
