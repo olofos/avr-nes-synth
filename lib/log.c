@@ -20,40 +20,57 @@
 #ifdef LOG_USE_I2C
 #include "i2c-master.h"
 
-void log_i2c_putc(const char c)
+static void log_i2c_start()
 {
     i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
     i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
-    i2c_write_byte(c);
+}
+
+static void log_i2c_stop()
+{
     i2c_stop();
+}
+
+static void log_i2c_write_char(const char c)
+{
+    if(c == '\n')
+    {
+        i2c_write_byte('\r');
+    }
+    i2c_write_byte(c);
+}
+
+void log_i2c_putc(const char c)
+{
+    log_i2c_start();
+    log_i2c_write_char(c);
+    log_i2c_stop();
 }
 
 void log_i2c_puts(const char *str)
 {
-    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
+    log_i2c_start();
 
     while(*str)
     {
-        i2c_write_byte(*str++);
+        log_i2c_write_char(*str++);
     }
 
-    i2c_stop();
+    log_i2c_stop();
 }
 
 void log_i2c_puts_P(const char *str)
 {
-    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-    i2c_write_byte(IO_BRIDGE_RECEIVE_UART);
+    log_i2c_start();
 
     uint8_t c;
 
     while((c = pgm_read_byte(str++)))
     {
-        i2c_write_byte(c);
+        log_i2c_write_char(c);
     }
 
-    i2c_stop();
+    log_i2c_stop();
 }
 
 #endif
