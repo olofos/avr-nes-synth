@@ -71,7 +71,7 @@ static uint8_t i2c_send_address(uint8_t address, uint8_t rw)
     switch(twst)
     {
     case TW_MT_SLA_NACK:
-    case TW_MR_DATA_NACK:
+    case TW_MR_SLA_NACK:
         // device busy, send stop condition to terminate write operation
         i2c_stop();
         return I2C_BUSY;
