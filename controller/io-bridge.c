@@ -1,5 +1,3 @@
-#include <util/delay.h>
-
 #include "config.h"
 #include "io.h"
 #include "i2c-master.h"
@@ -51,8 +49,6 @@ uint8_t io_uart_read_byte(void)
         uint8_t len = i2c_read_nak();
         i2c_stop();
 
-        _delay_us(20);
-
         if(len > 0)
         {
             i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
@@ -70,7 +66,6 @@ void io_uart_skip_bytes(uint8_t n)
     while(n)
     {
         io_uart_read_byte();
-        _delay_us(100);
         n--;
     }
 }
@@ -88,8 +83,6 @@ void io_uart_skip_bytes(uint8_t n)
         {
             len = n;
         }
-
-        _delay_us(50);
 
         if(len > 0)
         {

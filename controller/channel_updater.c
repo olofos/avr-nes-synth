@@ -31,7 +31,6 @@ static void release_bus(void)
 static void update_init(void)
 {
     io_set_uart_mode();
-    _delay_ms(1);
     io_uart_flush();
 
     set_inputs(PINS_BUS);
@@ -70,7 +69,6 @@ static void update_command_loop(void)
 
     while(!done)
     {
-//        set_low(PIN_LED);
         uint8_t ch = io_uart_read_byte();
 
         ssd1306_puts("Received: ",0,0);
@@ -125,9 +123,7 @@ static void update_command_loop(void)
         {
             // UNIVERSAL command is ignored
             io_uart_skip_bytes(4);
-            _delay_us(100);
             VERIFY_SPACE;
-            _delay_us(100);
             io_uart_write_byte(0x00);
             break;
         }
@@ -156,7 +152,7 @@ static void update_command_loop(void)
 
             VERIFY_SPACE;
 
-            //
+            // TODO: Read from device
 
             do {
                 uint8_t c = 0xFF;
@@ -181,16 +177,13 @@ static void update_command_loop(void)
             break;
 
         default:
-//            set_high(PIN_LED);
             VERIFY_SPACE;
             break;
         }
-        _delay_us(100);
         if(!done || done == STK_OK)
         {
             io_uart_write_byte(STK_OK);
         }
-        _delay_us(100);
     }
 }
 
@@ -198,7 +191,6 @@ void update_channels(void)
 {
     log_puts("Starting channel updater\n");
     ssd1306_clear();
-    _delay_ms(1);
     update_init();
     update_command_loop();
     update_deinit();

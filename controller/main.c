@@ -280,7 +280,6 @@ void bitmap(const char* filename)
                 i2c_write_byte((b7 << 7) | (b6 << 6) | (b5 << 5) | (b4 << 4) | (b3 << 3) | (b2 << 2) | (b1 << 1) | (b0 << 0));
             }
         }
-        _delay_ms(1);
     }
     ssd1306_bitmap_end();
     fat32_close_file();
@@ -467,8 +466,6 @@ void clear_inputs(void)
     i2c_write_byte(IO_BRIDGE_TRANSMIT_BUTTONS);
     i2c_stop();
 
-    _delay_us(100);
-
     i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
     i2c_read_nak();
     i2c_stop();
@@ -611,8 +608,6 @@ void console_show(void)
 //    i2c_stop();
 
     io_set_uart_mode();
-
-    _delay_us(20);
 
     uint8_t done = 0;
 
