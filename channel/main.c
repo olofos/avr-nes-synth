@@ -487,7 +487,7 @@ void frame_update_tri(void)
 
 
 void (*write_reg)(uint8_t address, uint8_t val);
-void (*frame_update)();
+void (*frame_update)(void);
 
 
 void io_init(void)

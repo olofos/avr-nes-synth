@@ -69,23 +69,23 @@ struct
 uint16_t global_timer;
 
 static inline void channel_reset_hold(void);
-static inline void channel_reset_release();
+static inline void channel_reset_release(void);
 
-void io_init();
-void spi_init();
-void timers_init();
+void io_init(void);
+void spi_init(void);
+void timers_init(void);
 
-static inline void timer0_start();
-static inline void timer0_stop();
-static inline void timer2_start();
-static inline void timer2_stop();
+static inline void timer0_start(void);
+static inline void timer0_stop(void);
+static inline void timer2_start(void);
+static inline void timer2_stop(void);
 
 void error_led_loop(uint8_t n);
 
-void i2c_scan();
+void i2c_scan(void);
 
-void clear_inputs();
-uint8_t get_input();
+void clear_inputs(void);
+uint8_t get_input(void);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,14 +96,14 @@ void bitmap(const char* filename);
 
 volatile uint8_t song_done;
 
-void reset_channels();
+void reset_channels(void);
 uint8_t song_play(const char* filename);
-uint8_t song_handle_inputs();
+uint8_t song_handle_inputs(void);
 
 void song_open(const char* filename);
-void song_stop();
+void song_stop(void);
 
-void song_read_data();
+void song_read_data(void);
 
 #define SONG_STOP 0x01
 #define SONG_NEXT 0x02
