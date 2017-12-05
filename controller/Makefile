@@ -4,7 +4,7 @@ PROGRAMMER?=usbtiny
 
 TARGET=avr-nessynth-controller
 
-SOURCES=main.c io-bridge.c menu.c
+SOURCES=main.c io-bridge.c menu.c channel_updater.c
 
 LIBDIR=../lib/
 include $(LIBDIR)/Makefile.inc

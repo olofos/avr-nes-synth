@@ -45,6 +45,8 @@
 #include "logo-paw-48x48.h"
 #include <string.h>
 
+#include "channel_updater.h"
+
 #define reg_address_LEN 128
 #define reg_data_LEN 128
 
@@ -66,7 +68,7 @@ struct
 
 uint16_t global_timer;
 
-static inline void channel_reset_hold();
+static inline void channel_reset_hold(void);
 static inline void channel_reset_release();
 
 void io_init();
@@ -123,12 +125,16 @@ static const char menu_main_entry_1[] PROGMEM = "Play playlist";
 static const char menu_main_entry_2[] PROGMEM = "Edit playlist";
 static const char menu_main_entry_3[] PROGMEM = "Log";
 static const char menu_main_entry_4[] PROGMEM = "About";
+static const char menu_main_entry_5[] PROGMEM = "Console";
+static const char menu_main_entry_6[] PROGMEM = "Update Channels";
 
 #define MENU_MAIN_SONGS_SORTED_BY_GAME 0
 #define MENU_MAIN_PLAY_PLAYLIST 1
 #define MENU_MAIN_EDIT_PLAYLIST 2
 #define MENU_MAIN_LOG 3
 #define MENU_MAIN_ABOUT 4
+#define MENU_MAIN_CONSOLE 5
+#define MENU_MAIN_UPDATE 6
 
 static const char* const menu_main_entries[] PROGMEM = {
     menu_main_entry_0,
@@ -136,6 +142,8 @@ static const char* const menu_main_entries[] PROGMEM = {
     menu_main_entry_2,
     menu_main_entry_3,
     menu_main_entry_4,
+    menu_main_entry_5,
+    menu_main_entry_6,
 };
 
 static const char menu_playlist_edit_entry_0[] PROGMEM = "Add Track";
@@ -161,21 +169,21 @@ struct menu_info_t menu_playlist_edit_info;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static inline void channel_reset_hold()
+static inline void channel_reset_hold(void)
 {
     disable_pullup(PIN_CH_RESET);
     set_output(PIN_CH_RESET);
     set_low(PIN_CH_RESET);
 }
 
-static inline void channel_reset_release()
+static inline void channel_reset_release(void)
 {
     set_input(PIN_CH_RESET);
     enable_pullup(PIN_CH_RESET);
 }
 
 
-void io_init()
+void io_init(void)
 {
     set_outputs(PINS_BUS);
     set_output(PIN_DCLK);
@@ -198,7 +206,7 @@ void io_init()
     set_output(PIN_LED);
 }
 
-void spi_init()
+void spi_init(void)
 {
   // Enable SPI as master, MSB first, clock rate f_osc/16
     SPCR |= _BV(MSTR) | _BV(SPE) |  (0 << SPR1) | (1 << SPR0);
@@ -211,7 +219,7 @@ void spi_init()
 
 
 
-void i2c_scan()
+void i2c_scan(void)
 {
     log_puts("Scanning for I2C devices\n");
 
@@ -279,27 +287,27 @@ void bitmap(const char* filename)
 }
 
 
-static inline void timer0_start()
+static inline void timer0_start(void)
 {
     TCCR0B |= _BV(CS02); // Prescaler 256
 }
 
-static inline void timer0_stop()
+static inline void timer0_stop(void)
 {
     TCCR0B &= ~_BV(CS02);
 }
 
-static inline void timer2_start()
+static inline void timer2_start(void)
 {
     TCCR2B |= _BV(CS21); // Prescaler 8
 }
 
-static inline void timer2_stop()
+static inline void timer2_stop(void)
 {
     TCCR2B &= ~_BV(CS21);
 }
 
-void timers_init()
+void timers_init(void)
 {
     TCCR0A = _BV(WGM01); // CTC mode
     TCCR0B = 0;
@@ -339,14 +347,14 @@ void song_open(const char* filename)
     }
 }
 
-void song_stop()
+void song_stop(void)
 {
     timer0_stop();
     fat32_close_file();
 }
 
 
-void error_led_loop()
+void error_led_loop(void)
 {
     for(;;)
     {
@@ -368,7 +376,7 @@ void error_led_loop()
     }
 }
 
-void song_read_data()
+void song_read_data(void)
 {
     while(!cbuf_full(reg_data))
     {
@@ -401,7 +409,7 @@ void song_read_data()
     }
 }
 
-void reset_channels()
+void reset_channels(void)
 {
     cli();
     cbuf_init(reg_address);
@@ -437,7 +445,7 @@ uint8_t song_play(const char* filename)
 
         if(global_timer - start_time > MAX_PLAY_TIME)
         {
-            song_done = 1  ;
+            song_done = 1;
         }
     }
 
@@ -453,18 +461,20 @@ uint8_t song_play(const char* filename)
     return ret;
 }
 
-void clear_inputs()
+void clear_inputs(void)
 {
-    // Why is this needed???
-    i2c_start(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_write_byte(IO_BRIDGE_TRANSMIT_BUTTONS);
     i2c_stop();
 
-    i2c_start(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
+    _delay_us(100);
+
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_READ);
     i2c_read_nak();
     i2c_stop();
 }
 
-uint8_t song_handle_inputs()
+uint8_t song_handle_inputs(void)
 {
     uint8_t action = 0;
     switch(get_input())
@@ -592,7 +602,53 @@ void category_play(uint8_t choice)
     }
 }
 
-void about_show()
+void console_show(void)
+{
+    ssd1306_clear();
+
+//    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+//    i2c_write_byte(IO_BRIDGE_TRANSMIT_UART);
+//    i2c_stop();
+
+    io_set_uart_mode();
+
+    _delay_us(20);
+
+    uint8_t done = 0;
+
+    char buf[32];
+
+    uint8_t len;
+
+    uint8_t line = 0;
+    uint8_t row = 0;
+
+    while(!done)
+    {
+        uint8_t c = io_uart_read_byte();
+
+        ssd1306_putc(c, row*6, line);
+
+        if(c == 'q')
+        {
+            done = 1;
+        }
+
+        row++;
+        if(row > 20)
+        {
+            row = 0;
+            line++;
+
+            if(line > 8)
+                line = 0;
+        }
+    }
+
+    io_set_button_mode();
+}
+
+void about_show(void)
 {
     ssd1306_clear();
 
@@ -604,17 +660,37 @@ void about_show()
 
     ssd1306_puts_P(copyright, 12,7);
 
-    while(!get_input())
-        ;
-}
+    uint16_t t = 0;
+    uint8_t leds[] = {0x0F & ~0x01, 0x0F & ~0x02, 0x0F & ~0x04, 0x0F & ~0x08, 0x0F & ~0x04, 0x0F & ~0x02};
+    uint8_t n = 0;
 
-void splash_show()
-{
+    while(!get_input())
+    {
+        if(global_timer - t > 0)
+        {
+            i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+            i2c_write_byte(leds[n]);
+            i2c_stop();
+
+            n++;
+
+            if(n >= sizeof(leds)/sizeof(leds[0]))
+            {
+                n = 0;
+            }
+
+            t = global_timer;
+        }
+    }
+
+    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
+    i2c_write_byte(0x0F);
+    i2c_stop();
 }
 
 extern char log_buf[LOG_BUF_LEN];
 
-void log_show()
+void log_show(void)
 {
     uint8_t num_lines = log_buf_count_lines();
     uint8_t first_line = num_lines - 8;
@@ -672,6 +748,7 @@ void log_show()
         }
     }
 }
+
 
 static void menu_init()
 {
@@ -818,7 +895,7 @@ static void menu_edit_playlist_loop()
     }
 }
 
-int main()
+int main(void)
 {
     io_init();
     i2c_master_init();
@@ -864,6 +941,8 @@ int main()
 
     i2c_scan();
 
+    _delay_ms(1);
+
     if(is_high(PIN_SD_CD))
     {
         log_puts_P(PSTR("SD card detected\n"));
@@ -875,7 +954,7 @@ int main()
     sd_init();
     fat32_init();
 
-//    clear_inputs();
+    clear_inputs();
 
     menu_init();
 
@@ -908,6 +987,14 @@ int main()
 
         case MENU_MAIN_ABOUT:
             about_show();
+            break;
+
+        case MENU_MAIN_CONSOLE:
+            console_show();
+            break;
+
+        case MENU_MAIN_UPDATE:
+            update_channels();
             break;
 
 

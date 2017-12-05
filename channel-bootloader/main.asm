@@ -1,10 +1,8 @@
+;;; avr-gcc -Wall -mmcu=atmega88p -x assembler-with-cpp  -Wl,--section-start=.text=0x1800 -nostartfiles  -nodefaultlibs  -nostdlib main.asm -o main.elf
         #include <avr/io.h>
         #include "../channel/config.h"
+        #include "../lib/stk500.h"
         #define IO(X) _SFR_IO_ADDR (X)
-
-        #define STK_LOAD_ADDRESS    0x55
-        #define STK_PROG_PAGE       0x64
-        #define STK_READ_PAGE       0x74
 
         temp1   =       16
         count   =       17
