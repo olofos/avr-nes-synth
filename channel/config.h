@@ -3,6 +3,7 @@
 
 // GPIOR0 bits
 
+#define CONF_MASK          0x03
 #define CONF0_BIT          0
 #define CONF1_BIT          1
 #define FRAME_FLAG_BIT     2
@@ -12,6 +13,7 @@
 // Audio out
 
 #define PINS_DAC_PORT      PORTC
+#define PINS_DAC_PIN       PINC
 #define PINS_DAC_DDR       DDRC
 
 #define PIN_DAC0           PORTC0
