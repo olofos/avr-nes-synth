@@ -26,7 +26,7 @@
 
 #define PINS_BUS_PORT      PORTD
 #define PINS_BUS_PIN       PIND
-#define PINS_BUS_DDR       DDRB
+#define PINS_BUS_DDR       DDRD
 
 #define PIN_BUS0           PORTD0
 #define PIN_BUS1           PORTD1
