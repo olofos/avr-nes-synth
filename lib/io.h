@@ -3,16 +3,16 @@
 
 #include <avr/io.h>
 
-#define set_output(pin)     {pin ## _DDR |= _BV(pin);}
-#define set_input(pin)      {pin ## _DDR &= ~_BV(pin);}
-#define set_pin(pin,val)     {if(val) {pin ## _PORT |= _BV(pin);} else {pin ## _PORT &= ~_BV(pin);}}
+#define set_output(pin)     do {pin ## _DDR |= _BV(pin);} while(0)
+#define set_input(pin)      do {pin ## _DDR &= ~_BV(pin);} while(0)
+#define set_pin(pin,val)     do {if(val) {pin ## _PORT |= _BV(pin);} else {pin ## _PORT &= ~_BV(pin);}} while(0)
 
-#define enable_pullup(pin)  {pin ## _PORT |= _BV(pin);}
-#define disable_pullup(pin) {pin ## _PORT &= ~_BV(pin);}
+#define enable_pullup(pin)  do {pin ## _PORT |= _BV(pin);} while(0)
+#define disable_pullup(pin) do {pin ## _PORT &= ~_BV(pin);} while(0)
 
-#define set_low(pin)        {pin ## _PORT &= ~_BV(pin);}
-#define set_high(pin)       {pin ## _PORT |= _BV(pin);}
-#define toggle(pin)         {pin ## _PORT ^= _BV(pin);}
+#define set_low(pin)        do {pin ## _PORT &= ~_BV(pin);} while(0)
+#define set_high(pin)       do {pin ## _PORT |= _BV(pin);} while(0)
+#define toggle(pin)         do {pin ## _PORT ^= _BV(pin);} while(0)
 
 #define is_high(pin)        (pin ## _PIN & _BV(pin))
 #define is_low(pin)         (!(pin ## _PIN & _BV(pin)))
