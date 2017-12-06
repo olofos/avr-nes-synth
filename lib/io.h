@@ -22,6 +22,8 @@
 #define enable_pullups(pins)  {pins ## _PORT |= (pins ## _MASK);}
 #define disable_pullups(pins) {pins ## _PORT &= ~(pins ## _MASK);}
 
+#define are_high(pins) (pins ## _PIN & pins ## _MASK)
+#define are_low(pins) ((~(pins ## _PIN)) & pins ## _MASK)
 
 inline uint8_t SPI_transfer(const uint8_t data)
 {
