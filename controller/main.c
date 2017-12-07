@@ -45,6 +45,7 @@
 #include "logo-paw-48x48.h"
 #include <string.h>
 
+#include "open-drain.h"
 #include "channel_updater.h"
 
 #define reg_address_LEN 128
@@ -96,7 +97,7 @@ void bitmap(const char* filename);
 
 volatile uint8_t song_done;
 
-void reset_channels(void);
+void channel_init(void);
 uint8_t song_play(const char* filename);
 uint8_t song_handle_inputs(void);
 
@@ -185,12 +186,8 @@ static inline void channel_reset_release(void)
 
 void io_init(void)
 {
-    set_outputs(PINS_BUS);
     set_output(PIN_DCLK);
-    set_output(PIN_FCLK);
-
     set_low(PIN_DCLK);
-    set_low(PIN_FCLK);
 
     set_output(PIN_MOSI);
     set_input(PIN_MISO);
@@ -402,7 +399,7 @@ void song_read_data(void)
     }
 }
 
-void reset_channels(void)
+void channel_init(void)
 {
     cli();
     cbuf_init(reg_address);
@@ -442,7 +439,7 @@ uint8_t song_play(const char* filename)
         }
     }
 
-    reset_channels();
+    channel_init();
     _delay_ms(100); // Make sure channels have time to stop playing
     song_stop();
 
@@ -738,6 +735,42 @@ void log_show(void)
     }
 }
 
+static void channel_reset(void)
+{
+    channel_reset_hold();
+    set_bus(0x00);
+    release_fclk();
+    set_low(PIN_DCLK);
+    _delay_us(10); // Make sure to hold reset long enough
+    channel_reset_release();
+
+    _delay_ms(1);
+    release_bus();
+    set_high(PIN_DCLK);
+    _delay_ms(250);
+    set_high(PIN_LED);
+    uint8_t channels = are_high(PINS_BUS);
+
+    log_puts("Channels: ");
+
+    uint8_t mask = 0x01;
+    for(uint8_t i = 0; i < 4; i++)
+    {
+        if(channels & mask)
+        {
+            log_putc('X');
+        } else {
+            log_putc('0' + i);
+        }
+
+        mask <<= 1;
+    }
+    log_nl();
+
+    set_low(PIN_DCLK);
+}
+
+
 
 static void menu_init()
 {
@@ -928,6 +961,10 @@ int main(void)
     log_init(LOG_I2C|LOG_BUF);
     spi_init();
 
+    set_open_drain();
+    channel_reset();
+    set_push_pull();
+
     i2c_scan();
 
     if(is_high(PIN_SD_CD))
@@ -946,7 +983,7 @@ int main(void)
     menu_init();
 
     _delay_ms(1125);
-    reset_channels();
+    channel_init();
 
     for(;;)
     {

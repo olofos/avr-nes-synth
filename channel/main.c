@@ -11,7 +11,7 @@
 #include "registers.h"
 
 #include "io.h"
-
+#include "open-drain.h"
 #include "cbuf.h"
 
 
@@ -564,7 +564,7 @@ void read_conf(void)
 
 void blink_conf(void)
 {
-    uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
+    uint8_t conf = GPIOR0 & CONF_MASK;
 
     do
     {
@@ -575,16 +575,30 @@ void blink_conf(void)
     } while(conf--);
 }
 
+static void do_handshake(void)
+{
+    set_high(PIN_LED);
+    uint8_t conf_bit = 1 << (GPIOR0 & CONF_MASK);
+    while(is_low(PIN_DCLK))
+        ;
+    set_bus(~conf_bit);
+    while(is_high(PIN_DCLK))
+        ;
+    release_bus();
+    set_low(PIN_LED);
+}
+
 int main(void)
 {
     io_init();
+    read_conf();
+    do_handshake();
+
     timers_init();
     interrupts_init();
 
     cbuf_init(reg_address);
     cbuf_init(reg_data);
-
-    read_conf();
 
     sei();
 

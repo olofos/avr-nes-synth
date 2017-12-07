@@ -1,6 +1,7 @@
 #include <util/delay.h>
 #include "config.h"
 #include "io.h"
+#include "open-drain.h"
 #include "io-bridge.h"
 #include "i2c-master.h"
 #include "channel_updater.h"
@@ -16,17 +17,6 @@
 #define TARGET_SIGNATURE_1 0x93
 #define TARGET_SIGNATURE_2 0x0F
 
-static void set_bus(uint8_t val)
-{
-    PINS_BUS_DDR = ~val;
-    PINS_BUS_PORT = val;
-}
-
-static void release_bus(void)
-{
-    PINS_BUS_DDR = 0x00;
-    PINS_BUS_PORT = 0xFF;
-}
 
 static void update_init(void)
 {
