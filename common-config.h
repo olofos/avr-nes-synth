@@ -6,7 +6,8 @@
 
 #define IO_BRIDGE_TRANSMIT_BUTTONS 0x40
 #define IO_BRIDGE_TRANSMIT_UART    0x41
-
 #define IO_BRIDGE_RECEIVE_UART     0x80
+
+#define BOOTLOADER_FLAG 0xAA
 
 #endif

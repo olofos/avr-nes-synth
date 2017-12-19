@@ -1,6 +1,8 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#include "../common-config.h"
+
 // GPIOR0 bits
 
 #define CONF_MASK          0x03
