@@ -64,6 +64,7 @@ main:
         
 get_command:
         wait_for_clock_lo
+        out     IO(PINS_BUS_DDR), zero
         wait_for_clock_hi
         in      temp1, IO(PINS_BUS_PIN)
         cpi     temp1, STK_PROG_PAGE
