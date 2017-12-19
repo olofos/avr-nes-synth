@@ -593,18 +593,9 @@ void category_play(uint8_t choice)
 void console_show(void)
 {
     ssd1306_clear();
-
-//    i2c_start_wait(I2C_IO_BRIDGE_ADDRESS, I2C_WRITE);
-//    i2c_write_byte(IO_BRIDGE_TRANSMIT_UART);
-//    i2c_stop();
-
     io_set_uart_mode();
 
     uint8_t done = 0;
-
-    char buf[32];
-
-    uint8_t len;
 
     uint8_t line = 0;
     uint8_t row = 0;
