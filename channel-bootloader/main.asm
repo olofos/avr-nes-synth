@@ -28,7 +28,6 @@
 
         .global main
 main:
-
 ;;; Turn off watchdog
         wdr
         in      temp1, IO(MCUSR)
@@ -41,14 +40,16 @@ main:
 
         clr     temp1
         sts     WDTCSR, temp1
-        
+
+
 ;;; Check if we should run the bootloader
         clr     zero
         out     IO(PINS_BUS_DDR), zero
         in      temp1, IO(PINS_BUS_PIN)
-        and     temp1, temp1
-        brne    get_command
-        rjmp    0x0000
+        ldi     count, BOOTLOADER_FLAG
+;;; Jump to application if the bus is 0x00
+        cpse    temp1, count
+        rjmp    try_app_start
 
 ;;; Set up IO ports
         out     IO(PINS_BUS_PORT), zero
@@ -69,6 +70,9 @@ get_command:
         breq    prog_page
         cpi     temp1, STK_READ_PAGE
         breq    read_page
+        cpi     temp1, STK_LOAD_ADDRESS
+        breq    load_address
+        rjmp    error_loop
 
 load_address:
         wait_for_clock_lo
@@ -77,13 +81,17 @@ load_address:
         wait_for_clock_lo
         wait_for_clock_hi
         in      ZH, IO(PINS_BUS_PIN)
+        ;; Convert from word address to byte address
+        add     ZL, ZL
+        adc     ZH, ZH
         rjmp    get_command
 
 prog_page:
         wait_spm_busy
 ;;; Fill flash buffer
         ldi     count, (SPM_PAGESIZE >> 1)
-        
+
+
 write_loop:
         wait_for_clock_lo
         wait_for_clock_hi
@@ -107,21 +115,53 @@ write_loop:
 
 ;;; Re-enable RWW section
         out     IO(SPMCSR), _BV(RWWSRE) | _BV(SELFPRGEN)
-        spm        
-        
+        spm
+
 ;;; Release flag
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
 
         rjmp    get_command
-        
+
 read_page:
         ldi     count, SPM_PAGESIZE
-read_page_loop: 
+read_page_loop:
         lpm     temp1, Z+
+        com     temp1
         wait_for_clock_lo
         out     IO(PINS_BUS_DDR), temp1
         wait_for_clock_hi
         dec     count
         brne    read_page_loop
         rjmp    get_command
-        
+
+try_app_start:
+        // Start app if temp1 = 0x00
+        cp      r1, r1
+        brne    error_loop
+        clr     r30
+        clr     r31
+        ijmp
+
+error_loop:
+        sbi     IO(PIN_LED_DDR), PIN_LED
+1:      sbi     IO(PIN_LED_PIN), PIN_LED
+        rcall   delay270ms
+        cbi     IO(PIN_LED_PIN), PIN_LED
+        rcall   delay270ms
+        rjmp    1b
+
+
+delay270ms:
+        ldi     temp1, 5
+1:      rcall   delay65535
+        dec     temp1
+        brne    1b
+        ret
+
+;;; About 54 ms at 14.318180 MHz
+delay65535:
+        ldi     ZL, 0xFF
+        ldi     ZH, 0xFF
+1:      sbiw    ZL, 1
+        brne    1b
+        ret
