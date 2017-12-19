@@ -16,26 +16,36 @@
 #define TARGET_SIGNATURE_0 0x1E
 #define TARGET_SIGNATURE_1 0x93
 #define TARGET_SIGNATURE_2 0x0F
+#define PAGESIZE 64
 
+static inline void channel_reset_hold(void)
+{
+    disable_pullup(PIN_CH_RESET);
+    set_output(PIN_CH_RESET);
+    set_low(PIN_CH_RESET);
+}
+
+static inline void channel_reset_release(void)
+{
+    set_input(PIN_CH_RESET);
+    enable_pullup(PIN_CH_RESET);
+}
 
 static void update_init(void)
 {
     io_set_uart_mode();
     io_uart_flush();
 
-    set_inputs(PINS_BUS);
     set_output(PIN_DCLK);
-    set_input(PIN_FCLK);
-
     set_low(PIN_DCLK);
+    set_open_drain();
 }
 
 static void update_deinit(void)
 {
     io_set_button_mode();
 
-    set_outputs(PINS_BUS);
-    set_output(PIN_DCLK);
+    set_push_pull();
     set_output(PIN_FCLK);
 }
 
@@ -52,6 +62,29 @@ static uint8_t verify_space(void)
 }
 
 #define VERIFY_SPACE if(!verify_space()) { done = STK_FAILED; break; }
+
+static void send_byte(uint8_t c)
+{
+    set_low(PIN_DCLK);
+    set_bus(c);
+    _delay_ms(1);
+    set_high(PIN_DCLK);
+    _delay_ms(1);
+    set_low(PIN_DCLK);
+    release_bus();
+}
+
+static uint8_t read_byte()
+{
+    release_bus();
+    set_low(PIN_DCLK);
+    _delay_ms(1);
+    set_high(PIN_DCLK);
+    _delay_ms(1);
+    uint8_t c = are_high(PINS_BUS);
+    set_low(PIN_DCLK);
+    return c;
+}
 
 static void update_command_loop(void)
 {
@@ -105,8 +138,9 @@ static void update_command_loop(void)
             uint8_t address_hi = io_uart_read_byte();
             VERIFY_SPACE;
 
-            // TODO: send STK_LOAD_ADDRESS command
-
+            send_byte(STK_LOAD_ADDRESS);
+            send_byte(address_lo);
+            send_byte(address_hi);
             break;
         }
         case STK_UNIVERSAL:
@@ -144,8 +178,20 @@ static void update_command_loop(void)
 
             // TODO: Read from device
 
+            if(len != PAGESIZE)
+            {
+                // TODO: error
+            }
+
+            if(dest_type != 'F')
+            {
+                // TODO: error
+            }
+
+            send_byte(STK_READ_PAGE);
+
             do {
-                uint8_t c = 0xFF;
+                uint8_t c = read_byte();
                 io_uart_write_byte(c);
             } while(--len);
 
@@ -182,6 +228,19 @@ void update_channels(void)
     log_puts("Starting channel updater\n");
     ssd1306_clear();
     update_init();
+
+    channel_reset_hold();
+    set_bus(BOOTLOADER_FLAG);
+    _delay_ms(1);
+    channel_reset_release();
+    _delay_ms(1);
+
     update_command_loop();
+
+    channel_reset_hold();
+    set_bus(0x00);
+    _delay_ms(1);
+    channel_reset_release();
+
     update_deinit();
 }

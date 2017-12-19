@@ -61,7 +61,9 @@ main:
         sbi     IO(PIN_CONF0_PORT), PIN_CONF0
         cbi     IO(PIN_CONF1_DDR), PIN_CONF1
         sbi     IO(PIN_CONF1_PORT), PIN_CONF1
-        
+
+;;; TODO: add a handshake?
+
 get_command:
         wait_for_clock_lo
         out     IO(PINS_BUS_DDR), zero
