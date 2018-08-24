@@ -1,6 +1,8 @@
 
 #include "Nsf_Emu.h"
 
+#include "stdio.h"
+
 #if !NSF_EMU_APU_ONLY
 	#include "Nes_Namco_Apu.h"
 #endif
@@ -70,8 +72,16 @@ void Nsf_Emu::cpu_write( nes_addr_t addr, int data )
 	if ( bank < bank_count )
 	{
 		blargg_long offset = rom.mask_addr( data * (blargg_long) bank_size );
+		printf("Bank #%d: %d 0x%04X 0x%04lX\n", bank, data, offset, rom.size());
+
 		if ( offset >= rom.size() )
+		{
+			printf("Invalid bank (%d -> 0x%04X)\n", bank, offset);
 			set_warning( "Invalid bank" );
+		} else {
+			apu.bank_switch(cpu::time(), cpu::total_time(), bank, data);
+		}
+
 		cpu::map_code( (bank + 8) * bank_size, bank_size, rom.at_addr( offset ) );
 		return;
 	}

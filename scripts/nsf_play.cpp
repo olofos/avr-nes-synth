@@ -17,7 +17,9 @@ void handle_error( const char* str );
 
 void print_usage(char *p)
 {
-    fprintf(stderr, "Usage: %s [-t ntracks] [-s nsecs] [-o out] filename\n", p);
+    fprintf(stderr, "Usage: %s [-t track] [-s nsecs] [-o out] filename\n"
+            "       %s -c|-b|-f filename\n",
+            p, p);
 }
 
 int main(int argc, char **argv)
@@ -27,10 +29,13 @@ int main(int argc, char **argv)
         char *filename = 0;
         char *filename_out = 0;
         int timeout = 30;
+        int print_track_count = 0;
+        int print_chip_flags = 0;
+        int print_bank_count = 0;
 
         char *filename_wav = 0;
 
-        const char *opts = "t:o:s:w:";
+        const char *opts = "t:o:s:w:cbf";
         int opts_done = 0;
         
         while(!opts_done)
@@ -59,6 +64,18 @@ int main(int argc, char **argv)
                 timeout = strtol(optarg, 0, 10);
                 break;
 
+            case 'b':
+                print_bank_count = 1;
+                break;
+
+            case 'c':
+                print_track_count = 1;
+                break;
+
+            case 'f':
+                print_chip_flags = 1;
+                break;
+
             default:
                 print_usage(argv[0]);
                 exit(1);
@@ -81,6 +98,45 @@ int main(int argc, char **argv)
 	
 	// Load music file into emulator
 	handle_error( emu->load_file( filename ) );
+
+        if(print_track_count)
+        {
+            printf("%d\n", emu->header().track_count);
+            return 0;
+        }
+
+        if(print_chip_flags)
+        {
+            if(emu->header().chip_flags & 0x01) {
+                printf("Uses VRC6 audio\n");
+            }
+
+            if(emu->header().chip_flags & 0x02) {
+                printf("Uses VRC7 audio\n");
+            }
+
+            if(emu->header().chip_flags & 0x04) {
+                printf("Uses FDS audio\n");
+            }
+
+            if(emu->header().chip_flags & 0x08) {
+                printf("Uses MMC5 audio\n");
+            }
+
+            if(emu->header().chip_flags & 0x10) {
+                printf("Uses Namco 163 audio\n");
+            }
+
+            if(emu->header().chip_flags & 0x20) {
+                printf("Uses Sunsoft 5B audio\n");
+            }
+            return 0;
+        }
+
+        if(print_bank_count) {
+            printf("%d\n", emu->rom_size() / 4096);
+            return 0;
+        }
 
 	// Start track
 	handle_error( emu->start_track( track ) );

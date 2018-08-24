@@ -41,6 +41,8 @@ public:
 	header_t const& header() const { return header_; }
 	
 	static gme_type_t static_type() { return gme_nsf_type; }
+
+	int rom_size() { return rom.size(); }
 	
 public:
 	// deprecated

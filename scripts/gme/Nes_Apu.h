@@ -40,6 +40,7 @@ public:
 	enum { start_addr = 0x4000 };
 	enum { end_addr   = 0x4017 };
 	void write_register( nes_time_t, long total_time, nes_addr_t, int data );
+	void bank_switch( nes_time_t t, long total_time, int slot, int bank);
 	
 	// Read from status register at 0x4015
 	enum { status_addr = 0x4015 };
@@ -105,8 +106,8 @@ public:
 public:
 	Nes_Apu();
 
-        std::vector<RegWrite> reg_writes;
-        
+	std::vector<RegWrite> reg_writes;
+
 	BLARGG_DISABLE_NOTHROW
 private:
 	friend class Nes_Nonlinearizer;

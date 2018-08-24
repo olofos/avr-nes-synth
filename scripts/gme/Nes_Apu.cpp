@@ -1,6 +1,7 @@
 // Nes_Snd_Emu 0.1.8. http://www.slack.net/~ant/
 
 #include "Nes_Apu.h"
+#include <stdio.h>
 
 /* Copyright (C) 2003-2006 Shay Green. This module is free software; you
 can redistribute it and/or modify it under the terms of the GNU Lesser
@@ -282,6 +283,13 @@ static const unsigned char length_table [0x20] = {
 	0x0C, 0x10, 0x18, 0x12, 0x30, 0x14, 0x60, 0x16,
 	0xC0, 0x18, 0x48, 0x1A, 0x10, 0x1C, 0x20, 0x1E
 };
+
+void Nes_Apu::bank_switch( nes_time_t time, long total_time, int slot, int bank )
+{
+	RegWrite b = { total_time + time, slot + 0xb0, bank };
+	reg_writes.push_back(b);
+}
+
 
 void Nes_Apu::write_register( nes_time_t time, long total_time, nes_addr_t addr, int data )
 {
