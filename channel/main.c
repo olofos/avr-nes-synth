@@ -15,8 +15,9 @@
 #include "cbuf.h"
 
 
-#define timer1_start() do { TCCR1B |=  _BV(CS11); } while(0)
-#define timer1_stop()  do { TCCR1B &= ~_BV(CS11); } while(0)
+#define channel_timer_start() do { TCCR1B |=  _BV(CS11); } while(0)
+#define channel_timer_stop()  do { TCCR1B &= ~_BV(CS11); } while(0)
+#define channel_timer_set_period(p) do { OCR1A = p; } while(0)
 
 #define CHAN_SQ1   0
 #define CHAN_SQ2   1
@@ -169,7 +170,7 @@ static void write_reg_sq_reg_2(uint8_t val)
       0-7   8 LSB of wavelength
     */
     channel.period_lo = val;
-    OCR1A = channel.period;
+    channel_timer_set_period(channel.period);
 }
 
 static void write_reg_sq_reg_3(uint8_t val)
@@ -183,12 +184,12 @@ static void write_reg_sq_reg_3(uint8_t val)
 
     channel.period_hi = val & 0x07;
 
-    OCR1A = channel.period;
+    channel_timer_set_period(channel.period);
     if(channel.period < 8)
     {
-        timer1_stop();
+        channel_timer_stop();
     } else {
-        timer1_start();
+        channel_timer_start();
     }
 }
 
@@ -267,7 +268,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
         */
 
         channel.period_lo = val;
-        OCR1A = channel.period;
+        channel_timer_set_period(channel.period);
         break;
 
     case 0x0B:
@@ -280,13 +281,13 @@ void write_reg_tri(uint8_t address, uint8_t val)
 
         channel.period_hi = val & 0x07;
 
-        OCR1A = channel.period;
+        channel_timer_set_period(channel.period);
 
         if(channel.period < 4)
         {
-            timer1_stop();
+            channel_timer_stop();
         } else {
-            timer1_start();
+            channel_timer_start();
         }
 
         break;
@@ -328,9 +329,9 @@ void write_reg_noise(uint8_t address, uint8_t val)
 
         channel.period = noise_period_lut[val & 0x0F];
 
-        OCR1A = channel.period;
+        channel_timer_set_period(channel.period);
 
-        timer1_start(); // ???
+        channel_timer_start(); // ???
         break;
 
     case 0x0F:
@@ -385,7 +386,7 @@ static void frame_update_sweep()
             channel_volume = 0;
         } else if(channel.sweep_enabled) {
             channel.period = target_period;
-            OCR1A = channel.period;
+            channel_timer_set_period(channel.period);
         }
     }
 
@@ -459,7 +460,7 @@ void frame_update_noise()
 
     if(!channel_volume)
     {
-        timer1_stop();
+        channel_timer_stop();
     }
 }
 
