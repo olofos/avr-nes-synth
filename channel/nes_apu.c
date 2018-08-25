@@ -26,10 +26,6 @@
 #define channel_timer_start() do { TCCR1B |=  _BV(CS11); } while(0)
 #define channel_timer_stop()  do { TCCR1B &= ~_BV(CS11); } while(0)
 #define channel_timer_set_period(p) do { OCR1A = p; } while(0)
-#else
-void channel_timer_start(void);
-void channel_timer_stop(void);
-void channel_timer_set_period(uint16_t period);
 #endif
 
 volatile uint8_t wave_buf[32] __attribute__ ((aligned (0x100))) = {

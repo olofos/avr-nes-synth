@@ -70,7 +70,10 @@ typedef struct
 
 } channel_t;
 
-extern channel_t channel;
+#ifndef AVR
+extern channel_t *current_channel;
+#define channel (*current_channel)
+#endif
 
 void write_reg_sq1(uint8_t address, uint8_t val);
 void write_reg_sq2(uint8_t address, uint8_t val);
@@ -80,5 +83,12 @@ void write_reg_noise(uint8_t address, uint8_t val);
 void frame_update_sq(void);
 void frame_update_tri(void);
 void frame_update_noise(void);
+
+#ifndef AVR
+void channel_timer_start(void);
+void channel_timer_stop(void);
+void channel_timer_set_period(uint16_t period);
+#endif
+
 
 #endif
