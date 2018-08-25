@@ -4,7 +4,7 @@ PROGRAMMER?=usbtiny
 
 TARGET=avr-nessynth-channel
 
-SOURCES=main.c interrupt.asm
+SOURCES=main.c nes_apu.c interrupt.asm
 
 CFLAGS=-ffixed-r2 -ffixed-r3 -ffixed-r4 -ffixed-r5 -ffixed-r6 -DASMINTERRUPT=1
 

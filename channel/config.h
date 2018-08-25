@@ -8,6 +8,7 @@
 #define FRAME_FLAG_BIT     2
 #define SHIFT_MODE_BIT     7
 
+#ifdef AVR
 
 // Audio out
 
@@ -72,4 +73,5 @@
 #define PIN_CONF1_PIN       PINB
 #define PIN_CONF1_DDR       DDRB
 
+#endif
 #endif
