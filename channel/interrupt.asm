@@ -15,18 +15,18 @@ TIMER1_COMPA_vect:
         push    temp1
 
         ;; Check MSB of config
-        sbis    _SFR_IO_ADDR(GPIOR0), CONF1_BIT
+        sbis    _SFR_IO_ADDR(channel_conf), CONF1_BIT
         rjmp    square
 
         ;; Check LSB of config
 not_square:
-        sbis    _SFR_IO_ADDR(GPIOR0), CONF0_BIT
+        sbis    _SFR_IO_ADDR(channel_conf), CONF0_BIT
         rjmp    triangle
 
 noise:
         mov     temp1, shift_register_lo             ; 1
         bst     shift_register_lo, 6                 ; 1
-        sbis    _SFR_IO_ADDR(GPIOR0), SHIFT_MODE_BIT ; 2/1
+        sbis    _SFR_IO_ADDR(channel_shift_mode), SHIFT_MODE_BIT ; 2/1
         bst     shift_register_lo, 1                 ; 1
         ;; the first feedbackbit is now in T
 
@@ -117,7 +117,7 @@ square:
 
         .global PCINT1_vect
 PCINT1_vect:
-        sbi _SFR_IO_ADDR(GPIOR0), FRAME_FLAG_BIT
+        sbi _SFR_IO_ADDR(frame_flag), FRAME_FLAG_BIT
         reti
 
 #endif

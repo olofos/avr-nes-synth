@@ -34,4 +34,8 @@ register uint8_t shift_register_hi asm("r5");
 
 #endif
 
+#define channel_shift_mode GPIOR0
+#define channel_conf       GPIOR0
+#define frame_flag         GPIOR0
+
 #endif

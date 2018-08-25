@@ -322,9 +322,9 @@ void write_reg_noise(uint8_t address, uint8_t val)
 
         if(val & 0x80)
         {
-            GPIOR0 |= _BV(SHIFT_MODE_BIT);
+            channel_shift_mode |= _BV(SHIFT_MODE_BIT);
         } else {
-            GPIOR0 &= ~_BV(SHIFT_MODE_BIT);
+            channel_shift_mode &= ~_BV(SHIFT_MODE_BIT);
         }
 
         channel.period = noise_period_lut[val & 0x0F];
@@ -364,7 +364,7 @@ static void frame_update_sweep()
 
     if(channel.sweep_neg_flag)
     {
-        if(!(GPIOR0 & _BV(CONF0_BIT)))
+        if(!(channel_conf & _BV(CONF0_BIT)))
         {
             delta = ~delta; // Pulse 1 adds the ones' complement
         } else {
@@ -531,7 +531,7 @@ void read_conf()
 {
     uint8_t conf = (is_high(PIN_CONF1) ? 2 : 0) | (is_high(PIN_CONF0) ? 1 : 0);
 
-    GPIOR0 = (GPIOR0 & ~(_BV(CONF0_BIT) | _BV(CONF1_BIT))) | (is_high(PIN_CONF0) ? _BV(CONF0_BIT) : 0) | (is_high(PIN_CONF1) ? _BV(CONF1_BIT) : 0);
+    channel_conf = (channel_conf & ~(_BV(CONF0_BIT) | _BV(CONF1_BIT))) | (is_high(PIN_CONF0) ? _BV(CONF0_BIT) : 0) | (is_high(PIN_CONF1) ? _BV(CONF1_BIT) : 0);
 
     switch(conf)
     {
@@ -604,9 +604,9 @@ int main()
 
         set_low(PIN_LED);
 
-        if(GPIOR0 & _BV(FRAME_FLAG_BIT))
+        if(frame_flag & _BV(FRAME_FLAG_BIT))
         {
-            GPIOR0 &= ~_BV(FRAME_FLAG_BIT);
+            frame_flag &= ~_BV(FRAME_FLAG_BIT);
             frame_update();
         }
     }
@@ -619,7 +619,7 @@ ISR(TIMER1_COMPA_vect)
 {
     set_high(PIN_LED);
 
-    if(!(GPIOR0 & _BV(CONF1_BIT)))
+    if(!(channel_conf & _BV(CONF1_BIT)))
     {
         // case CHAN_SQ1:
         // case CHAN_SQ2:
@@ -633,7 +633,7 @@ ISR(TIMER1_COMPA_vect)
             PINS_DAC_PORT &= 0xF0;
         }
     } else {
-        if(!(GPIOR0 & _BV(CONF0_BIT)))
+        if(!(channel_conf & _BV(CONF0_BIT)))
         {
             // case CHAN_TRI:
             if((channel_linear_counter > 0) && (channel_length_counter > 0))
@@ -653,7 +653,7 @@ ISR(TIMER1_COMPA_vect)
             // case CHAN_NOISE:
             uint8_t feedback;
 
-            if(GPIOR0 & _BV(SHIFT_MODE_BIT))
+            if(channel_shift_mode & _BV(SHIFT_MODE_BIT))
             {
                 feedback = ((shift_register_lo & _BV(0)) ^ ((shift_register_lo & _BV(6)) >> 6));
             } else {
@@ -685,7 +685,7 @@ ISR(TIMER1_COMPA_vect)
 
 ISR(PCINT1_vect)
 {
-    GPIOR0 |= _BV(FRAME_FLAG_BIT);
+    frame_flag |= _BV(FRAME_FLAG_BIT);
 }
 
 #endif
