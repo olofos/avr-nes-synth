@@ -20,7 +20,7 @@
 #endif
 
 #include "config.h"
-#include "nes_apu.h"
+#include "nes_apu_channel.h"
 
 #ifdef AVR
 #define channel_timer_start() do { TCCR1B |=  _BV(CS11); } while(0)

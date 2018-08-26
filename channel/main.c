@@ -14,7 +14,7 @@
 
 #include "cbuf.h"
 
-#include "nes_apu.h"
+#include "nes_apu_channel.h"
 
 #define reg_address_LEN 32
 #define reg_data_LEN 32

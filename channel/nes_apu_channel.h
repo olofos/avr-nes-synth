@@ -1,5 +1,5 @@
-#ifndef NES_APU_H_
-#define NES_APU_H_
+#ifndef NES_APU_CHANNEL_H_
+#define NES_APU_CHANNEL_H_
 
 #define CHAN_SQ1   0
 #define CHAN_SQ2   1
