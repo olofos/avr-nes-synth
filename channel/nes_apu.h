@@ -66,6 +66,7 @@ typedef struct
 
 #ifndef AVR
     uint8_t conf;
+    uint8_t step;
 #endif
 
 } channel_t;
