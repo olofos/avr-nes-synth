@@ -67,9 +67,14 @@ typedef struct
 #ifndef AVR
     uint8_t conf;
     uint8_t step;
+    uint8_t timer_running;
+    uint16_t reload_period;
+    double phase;
 #endif
 
 } channel_t;
+
+extern volatile uint8_t wave_buf[32] __attribute__ ((aligned (0x100)));
 
 #ifndef AVR
 extern channel_t *current_channel;
@@ -89,6 +94,8 @@ void frame_update_noise(void);
 void channel_timer_start(void);
 void channel_timer_stop(void);
 void channel_timer_set_period(uint16_t period);
+
+#define _BV(n) (1u << (n))
 #endif
 
 

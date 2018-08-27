@@ -1,7 +1,5 @@
 #ifdef AVR
 #include <avr/io.h>
-#else
-#define _BV(n) (1U << (n))
 #endif
 
 #include <stdlib.h>
