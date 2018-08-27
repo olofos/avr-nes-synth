@@ -133,6 +133,9 @@ void write_reg_sq1(uint8_t address, uint8_t val)
 
     case 0x15:
         channel.enabled = val & 0x01;
+        if(!(val & 0x01)) {
+            channel_length_counter = 0;
+        }
         break;
     }
 }
@@ -160,6 +163,9 @@ void write_reg_sq2(uint8_t address, uint8_t val)
 
     case 0x15:
         channel.enabled = val & 0x02;
+        if(!(val & 0x02)) {
+            channel_length_counter = 0;
+        }
         break;
     }
 }
@@ -211,6 +217,9 @@ void write_reg_tri(uint8_t address, uint8_t val)
 
     case 0x15:
         channel.enabled = val & 0x04;
+        if(!(val & 0x04)) {
+            channel_length_counter = 0;
+        }
         break;
     }
 }
@@ -261,6 +270,9 @@ void write_reg_noise(uint8_t address, uint8_t val)
 
     case 0x15:
         channel.enabled = val & 0x08;
+        if(!(val & 0x08)) {
+            channel_length_counter = 0;
+        }
         break;
     }
 }
