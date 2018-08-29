@@ -1,5 +1,7 @@
 #ifdef AVR
 #include <avr/io.h>
+#else
+#include <stdio.h>
 #endif
 
 #include <stdlib.h>
@@ -46,6 +48,34 @@ static const uint16_t noise_period_lut[16] = {
 
 static const uint8_t duty_tab[4] = {2, 4, 8, 12};
 
+#define CHECK_MUTE_SQ() do {                                            \
+        if((channel.period < 8) || !channel_length_counter || (channel.sweep_target_period > 0x07FF)) \
+        {                                                               \
+            channel_timer_stop();                                       \
+        } else {                                                        \
+            channel_timer_start();                                      \
+        }                                                               \
+    } while(0)
+
+#define CHECK_MUTE_TRI() do {                                           \
+        if((channel.period < 4) || !channel_length_counter || !channel_linear_counter ) \
+        {                                                               \
+            channel_timer_stop();                                       \
+        } else {                                                        \
+            channel_timer_start();                                      \
+        }                                                               \
+    } while(0)
+
+#define CHECK_MUTE_NOISE() do {                                         \
+        if((channel.period < 4) || !channel_length_counter)             \
+        {                                                               \
+            channel_timer_stop();                                       \
+        } else {                                                        \
+            channel_timer_start();                                      \
+        }                                                               \
+    } while(0)
+
+
 static void write_reg_sq_reg_0(uint8_t val)
 {
     /*
@@ -87,7 +117,7 @@ static void write_reg_sq_reg_2(uint8_t val)
       0-7   8 LSB of wavelength
     */
     channel.period_lo = val;
-    channel_timer_set_period(channel.period);
+    channel_timer_set_period(channel.period+1);
 }
 
 static void write_reg_sq_reg_3(uint8_t val)
@@ -101,13 +131,7 @@ static void write_reg_sq_reg_3(uint8_t val)
 
     channel.period_hi = val & 0x07;
 
-    channel_timer_set_period(channel.period);
-    if(channel.period < 8)
-    {
-        channel_timer_stop();
-    } else {
-        channel_timer_start();
-    }
+    channel_timer_set_period(channel.period+1);
 }
 
 
@@ -138,6 +162,8 @@ void write_reg_sq1(uint8_t address, uint8_t val)
         }
         break;
     }
+
+    CHECK_MUTE_SQ();
 }
 
 
@@ -168,6 +194,8 @@ void write_reg_sq2(uint8_t address, uint8_t val)
         }
         break;
     }
+
+    CHECK_MUTE_SQ();
 }
 
 void write_reg_tri(uint8_t address, uint8_t val)
@@ -191,7 +219,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
         */
 
         channel.period_lo = val;
-        channel_timer_set_period(channel.period);
+        channel_timer_set_period(channel.period+1);
         break;
 
     case 0x0B:
@@ -204,14 +232,7 @@ void write_reg_tri(uint8_t address, uint8_t val)
 
         channel.period_hi = val & 0x07;
 
-        channel_timer_set_period(channel.period);
-
-        if(channel.period < 4)
-        {
-            channel_timer_stop();
-        } else {
-            channel_timer_start();
-        }
+        channel_timer_set_period(channel.period+1);
 
         break;
 
@@ -222,6 +243,8 @@ void write_reg_tri(uint8_t address, uint8_t val)
         }
         break;
     }
+
+    CHECK_MUTE_TRI();
 }
 
 void write_reg_noise(uint8_t address, uint8_t val)
@@ -255,7 +278,7 @@ void write_reg_noise(uint8_t address, uint8_t val)
 
         channel.period = noise_period_lut[val & 0x0F];
 
-        channel_timer_set_period(channel.period);
+        channel_timer_set_period(channel.period+1);
 
         channel_timer_start(); // ???
         break;
@@ -275,6 +298,8 @@ void write_reg_noise(uint8_t address, uint8_t val)
         }
         break;
     }
+
+    CHECK_MUTE_NOISE();
 }
 
 static void frame_update_length_counter()
@@ -287,33 +312,27 @@ static void frame_update_length_counter()
 
 static void frame_update_sweep()
 {
-    int16_t delta = channel.period >> channel.sweep_shift;
-
-    if(channel.sweep_neg_flag)
-    {
-        if(!(channel_conf & _BV(CONF0_BIT)))
-        {
-            delta = ~delta; // Pulse 1 adds the ones' complement
-        } else {
-            delta = -delta; // Pulse 2 adds the two's complement
-        }
-    }
-
-    uint16_t target_period = channel.period + delta;
-
     if(channel.sweep_div_counter > 0) {
         channel.sweep_div_counter--;
     } else {
+        int16_t delta = channel.period >> channel.sweep_shift;
+
+        if(channel.sweep_neg_flag)
+        {
+            if(!(channel_conf & _BV(CONF0_BIT)))
+            {
+                delta = ~delta; // Pulse 1 adds the ones' complement
+            } else {
+                delta = -delta; // Pulse 2 adds the two's complement
+            }
+        }
+
+        channel.sweep_target_period = channel.period + delta;
         channel.sweep_div_counter = channel.sweep_div_period;
 
-        if((target_period > 0x07FF) || (channel.period < 8))
-        {
-            // Mute the channel?
-            // TODO: Introduce mute flag in GPIOR0?
-            channel_volume = 0;
-        } else if(channel.sweep_enabled) {
-            channel.period = target_period;
-            channel_timer_set_period(channel.period);
+        if(channel.sweep_enabled) {
+            channel.period = channel.sweep_target_period;
+            channel_timer_set_period(channel.period+1);
         }
     }
 
@@ -359,7 +378,7 @@ void frame_update_sq()
 
     if(!channel_length_counter)
     {
-        channel_volume = 0;
+        // channel_volume = 0;
     } else if(channel.env_const_flag) {
         channel_volume = channel.env_reload_value;
     } else {
@@ -378,7 +397,7 @@ void frame_update_noise()
 
     if(!channel_length_counter)
     {
-        channel_volume = 0;
+        // channel_volume = 0;
     } else if(channel.env_const_flag) {
         channel_volume = channel.env_reload_value;
     } else {

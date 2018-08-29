@@ -67,11 +67,11 @@ typedef struct
 #ifndef AVR
     uint8_t conf;
     uint8_t step;
-    uint8_t timer_running;
+    uint8_t muted;
     uint16_t reload_period;
+    int16_t sweep_target_period;
     double phase;
 #endif
-
 } channel_t;
 
 extern volatile uint8_t wave_buf[32] __attribute__ ((aligned (0x100)));
