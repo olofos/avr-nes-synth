@@ -69,7 +69,6 @@ typedef struct
     uint8_t step;
     uint8_t muted;
     uint16_t reload_period;
-    int16_t sweep_target_period;
     double phase;
 #endif
 } channel_t;

@@ -49,7 +49,12 @@ static const uint16_t noise_period_lut[16] = {
 static const uint8_t duty_tab[4] = {2, 4, 8, 12};
 
 #define CHECK_MUTE_SQ() do {                                            \
-        if((channel.period < 8) || !channel_length_counter || (channel.sweep_target_period > 0x07FF)) \
+        const uint16_t delta = channel.sweep_neg_flag ?                 \
+            0 :                                                         \
+            (channel.period >> channel.sweep_shift);                    \
+        const uint16_t sweep_target_period = channel.period + delta;    \
+        if((channel.period < 8) || !channel_length_counter ||           \
+           (sweep_target_period > 0x07FF))                              \
         {                                                               \
             channel_timer_stop();                                       \
         } else {                                                        \
@@ -105,7 +110,7 @@ static void write_reg_sq_reg_1(uint8_t val)
     channel.sweep_enabled = val & 0x80;
     channel.sweep_neg_flag = val & 0x08;
 
-    channel.sweep_div_period = ((val >> 4) & 0x07) + 1;
+    channel.sweep_div_period = ((val >> 4) & 0x07);
     channel.sweep_shift = val & 0x07;
 
     channel.sweep_reload_flag = 1;
@@ -315,30 +320,32 @@ static void frame_update_sweep()
     if(channel.sweep_div_counter > 0) {
         channel.sweep_div_counter--;
     } else {
-        int16_t delta = channel.period >> channel.sweep_shift;
+        channel.sweep_reload_flag = 1;
+        if(channel.sweep_enabled && channel.sweep_shift && (channel.period >= 8)) {
+            int16_t delta = channel.period >> channel.sweep_shift;
 
-        if(channel.sweep_neg_flag)
-        {
-            if(!(channel_conf & _BV(CONF0_BIT)))
+            if(channel.sweep_neg_flag)
             {
-                delta = ~delta; // Pulse 1 adds the ones' complement
-            } else {
-                delta = -delta; // Pulse 2 adds the two's complement
+                if(!(channel_conf & _BV(CONF0_BIT)))
+                {
+                    delta = ~delta; // Pulse 1 adds the ones' complement
+                } else {
+                    delta = -delta; // Pulse 2 adds the two's complement
+                }
             }
-        }
 
-        channel.sweep_target_period = channel.period + delta;
-        channel.sweep_div_counter = channel.sweep_div_period;
 
-        if(channel.sweep_enabled) {
-            channel.period = channel.sweep_target_period;
-            channel_timer_set_period(channel.period+1);
+            const uint16_t sweep_target_period = channel.period + delta;
+            printf("%d\n", sweep_target_period);
+            if(sweep_target_period < 0x800) {
+                channel_timer_set_period(sweep_target_period+1);
+            }
         }
     }
 
     if(channel.sweep_reload_flag)
     {
-        channel.sweep_div_counter = channel.sweep_div_period;
+        channel.sweep_div_counter = channel.sweep_div_period + 1 ;
         channel.sweep_reload_flag = 0;
     }
 }
