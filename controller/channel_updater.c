@@ -67,9 +67,9 @@ static void send_byte(uint8_t c)
 {
     set_low(PIN_DCLK);
     set_bus(c);
-    _delay_ms(1);
+    _delay_us(10);
     set_high(PIN_DCLK);
-    _delay_ms(1);
+    _delay_us(10);
     set_low(PIN_DCLK);
     release_bus();
 }
@@ -78,9 +78,9 @@ static uint8_t read_byte()
 {
     release_bus();
     set_low(PIN_DCLK);
-    _delay_ms(1);
+    _delay_us(10);
     set_high(PIN_DCLK);
-    _delay_ms(1);
+    _delay_us(10);
     uint8_t c = are_high(PINS_BUS);
     set_low(PIN_DCLK);
     return c;
@@ -231,7 +231,7 @@ void update_channels(void)
 
     channel_reset_hold();
     set_bus(BOOTLOADER_FLAG);
-    _delay_ms(1);
+    _delay_ms(10);
     channel_reset_release();
     _delay_ms(1);
 
@@ -239,7 +239,7 @@ void update_channels(void)
 
     channel_reset_hold();
     set_bus(0x00);
-    _delay_ms(1);
+    _delay_ms(10);
     channel_reset_release();
 
     update_deinit();
