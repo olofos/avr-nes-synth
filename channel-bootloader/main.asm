@@ -31,19 +31,17 @@ main:
 ;;; Turn off watchdog
         wdr
         in      temp1, IO(MCUSR)
-        andi    temp1, (0xFF & _BV(WDRF))
+        andi    temp1, ~(_BV(WDRF))
         out     IO(MCUSR), temp1
 
         lds     temp1, WDTCSR
         ori     temp1, _BV(WDCE) | _BV(WDE)
-        sts     WDTCSR, temp1
+        clr     zero
 
-        clr     temp1
         sts     WDTCSR, temp1
-
+        sts     WDTCSR, zero
 
 ;;; Check if we should run the bootloader
-        clr     zero
         out     IO(PINS_BUS_DDR), zero
         in      temp1, IO(PINS_BUS_PIN)
         ldi     count, BOOTLOADER_FLAG
@@ -93,7 +91,6 @@ prog_page:
         wait_spm_busy
 ;;; Fill flash buffer
         ldi     count, (SPM_PAGESIZE >> 1)
-
 
 write_loop:
         wait_for_clock_lo
