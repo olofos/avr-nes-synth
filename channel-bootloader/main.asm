@@ -136,7 +136,7 @@ read_page_loop:
 
 try_app_start:
         // Start app if temp1 = 0x00
-        cp      r1, r1
+        cp      temp1, temp1
         brne    error_loop
         clr     r30
         clr     r31
