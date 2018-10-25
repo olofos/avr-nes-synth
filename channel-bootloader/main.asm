@@ -108,16 +108,26 @@ write_loop:
 ;;; Assert flag
         sbi     IO(PIN_FCLK_DDR), PIN_FCLK
 
+;;; Go back to start of page
+	subi    ZL, SPM_PAGESIZE
+
+;;; Erase page
+        wait_spm_busy
+        out     IO(SPMCSR), _BV(PGERS) | _BV(SELFPRGEN)
+        spm
+
 ;;; Execute page write
-        subi    ZL, SPM_PAGESIZE
+        wait_spm_busy
         out     IO(SPMCSR), _BV(PGWRT) | _BV(SELFPRGEN)
         spm
 
 ;;; Re-enable RWW section
+        wait_spm_busy
         out     IO(SPMCSR), _BV(RWWSRE) | _BV(SELFPRGEN)
         spm
 
 ;;; Release flag
+        wait_spm_busy
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
 
         rjmp    get_command

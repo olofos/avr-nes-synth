@@ -154,16 +154,42 @@ static void update_command_loop(void)
 
         case STK_PROG_PAGE:
         {
+            // Write to device:
+            // 1. Send STK_PROG_PAGE
+            // 2. Loop PAGESIZE times:
+            //    2a. Load byte from uart
+            //    2b. Send byte
+            // 3. Wait for FCLK low
+            // 4. Wait for FCLK High
+
             io_uart_read_byte(); // Length hi == 0
             uint8_t len = io_uart_read_byte();
             uint8_t dest_type = io_uart_read_byte();
 
-            // TODO: Write to device
+            if(len != PAGESIZE)
+            {
+                // TODO: error
+            }
+
+            if(dest_type != 'F')
+            {
+                // TODO: error
+            }
+
+            send_byte(STK_PROG_PAGE);
+
             do {
                 uint8_t c = io_uart_read_byte();
+                send_byte(c);
             } while(--len);
 
+            while(is_high(PIN_FCLK))
+                ;
+
             VERIFY_SPACE;
+
+            while(is_low(PIN_FCLK))
+                ;
 
             break;
         }
