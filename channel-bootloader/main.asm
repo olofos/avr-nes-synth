@@ -55,10 +55,6 @@ main:
         cbi     IO(PIN_DCLK_PORT), PIN_DCLK
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
         cbi     IO(PIN_FCLK_PORT), PIN_FCLK
-        cbi     IO(PIN_CONF0_DDR), PIN_CONF0
-        sbi     IO(PIN_CONF0_PORT), PIN_CONF0
-        cbi     IO(PIN_CONF1_DDR), PIN_CONF1
-        sbi     IO(PIN_CONF1_PORT), PIN_CONF1
 
 ;;; TODO: add a handshake?
 
