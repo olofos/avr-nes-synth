@@ -5,12 +5,15 @@
         #define IO(X) _SFR_IO_ADDR (X)
 
         #if SPM_PAGESIZE >= 256
-	#error Pagesize too large
-	#endif
+        #error Pagesize too large
+        #endif
 
         temp1   =       16
         count   =       17
         zero    =       15
+
+        ;; Assume page_buffer contained within one 256 byte page
+        .lcomm 	page_buffer, SPM_PAGESIZE
 
         .section .text
 
@@ -60,8 +63,6 @@ main:
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
         cbi     IO(PIN_FCLK_PORT), PIN_FCLK
 
-;;; TODO: add a handshake?
-
 get_command:
         wait_for_clock_lo
         out     IO(PINS_BUS_DDR), zero
@@ -101,35 +102,46 @@ read_page_loop:
 
 
 prog_page:
-        wait_spm_busy
-;;; Fill flash buffer
-        ldi     count, (SPM_PAGESIZE >> 1)
+        ldi     count, SPM_PAGESIZE
+        ldi     YL, lo8(page_buffer)
+        ldi     YH, hi8(page_buffer)
 
-write_loop:
-        wait_for_clock_lo
-        wait_for_clock_hi
-        in      r0, IO(PINS_BUS_PIN)
-        wait_for_clock_lo
-        wait_for_clock_hi
-        in      r1, IO(PINS_BUS_PIN)
-        ldi     temp1,	_BV(SELFPRGEN)
+
+fill_page_buffer_loop:
+	wait_for_clock_lo
+	wait_for_clock_hi
+	in      temp1, IO(PINS_BUS_PIN)
+        st      Y+, temp1
+        dec     count
+        brne    fill_page_buffer_loop
+
+;;; Assert flag
+	sbi     IO(PIN_FCLK_DDR), PIN_FCLK
+
+;;; Erase page
+	wait_spm_busy
+        ldi     temp1, _BV(PGERS) | _BV(SELFPRGEN)
+	out     IO(SPMCSR), temp1
+	spm
+
+        ;; Assume that page_buffer is contained in one 256 page in SRAM
+	ldi     YL, lo8(page_buffer)
+	ldi     count, (SPM_PAGESIZE >> 1)
+
+fill_temp_buffer_loop:
+        ld      r0, Y+
+        ld      r1, Y+
+
+        wait_spm_busy
+        ldi     temp1, _BV(SELFPRGEN)
         out     IO(SPMCSR), temp1
         spm
         subi    ZL, -2
         dec     count
-        brne    write_loop
-
-;;; Assert flag
-        sbi     IO(PIN_FCLK_DDR), PIN_FCLK
+        brne    fill_temp_buffer_loop
 
 ;;; Go back to start of page
 	subi    ZL, SPM_PAGESIZE
-
-;;; Erase page
-        wait_spm_busy
-        ldi     temp1, 	_BV(PGERS) | _BV(SELFPRGEN)
-        out     IO(SPMCSR), temp1
-        spm
 
 ;;; Execute page write
         wait_spm_busy
@@ -146,15 +158,15 @@ write_loop:
 ;;; Release flag
         wait_spm_busy
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
-
         rjmp    get_command
+
 
 try_app_start:
         // Start app if temp1 = 0x00
         cp      temp1, temp1
         brne    error_loop
-        clr     r30
-        clr     r31
+        clr     ZL
+        clr     ZH
         ijmp
 
 error_loop:
