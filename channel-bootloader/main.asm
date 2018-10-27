@@ -4,6 +4,10 @@
         #include "../lib/stk500.h"
         #define IO(X) _SFR_IO_ADDR (X)
 
+        #if SPM_PAGESIZE >= 256
+	#error Pagesize too large
+	#endif
+
         temp1   =       16
         count   =       17
         zero    =       15
@@ -111,7 +115,7 @@ write_loop:
         ldi     temp1,	_BV(SELFPRGEN)
         out     IO(SPMCSR), temp1
         spm
-        adiw    Z, 2
+        subi    ZL, -2
         dec     count
         brne    write_loop
 
