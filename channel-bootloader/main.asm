@@ -108,7 +108,8 @@ write_loop:
         wait_for_clock_lo
         wait_for_clock_hi
         in      r1, IO(PINS_BUS_PIN)
-        out     IO(SPMCSR), _BV(SELFPRGEN)
+        ldi     temp1,	_BV(SELFPRGEN)
+        out     IO(SPMCSR), temp1
         spm
         adiw    Z, 2
         dec     count
@@ -122,17 +123,20 @@ write_loop:
 
 ;;; Erase page
         wait_spm_busy
-        out     IO(SPMCSR), _BV(PGERS) | _BV(SELFPRGEN)
+        ldi     temp1, 	_BV(PGERS) | _BV(SELFPRGEN)
+        out     IO(SPMCSR), temp1
         spm
 
 ;;; Execute page write
         wait_spm_busy
-        out     IO(SPMCSR), _BV(PGWRT) | _BV(SELFPRGEN)
+        ldi     temp1, _BV(PGWRT) | _BV(SELFPRGEN)
+        out     IO(SPMCSR), temp1
         spm
 
 ;;; Re-enable RWW section
         wait_spm_busy
-        out     IO(SPMCSR), _BV(RWWSRE) | _BV(SELFPRGEN)
+        ldi     temp1,	_BV(RWWSRE) | _BV(SELFPRGEN)
+        out     IO(SPMCSR), temp1
         spm
 
 ;;; Release flag
