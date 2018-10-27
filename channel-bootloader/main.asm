@@ -83,6 +83,19 @@ load_address:
         adc     ZH, ZH
         rjmp    get_command
 
+read_page:
+	ldi     count, SPM_PAGESIZE
+read_page_loop:
+	lpm     temp1, Z+
+	com     temp1
+	wait_for_clock_lo
+	out     IO(PINS_BUS_DDR), temp1
+	wait_for_clock_hi
+	dec     count
+	brne    read_page_loop
+	rjmp    get_command
+
+
 prog_page:
         wait_spm_busy
 ;;; Fill flash buffer
@@ -126,18 +139,6 @@ write_loop:
         wait_spm_busy
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
 
-        rjmp    get_command
-
-read_page:
-        ldi     count, SPM_PAGESIZE
-read_page_loop:
-        lpm     temp1, Z+
-        com     temp1
-        wait_for_clock_lo
-        out     IO(PINS_BUS_DDR), temp1
-        wait_for_clock_hi
-        dec     count
-        brne    read_page_loop
         rjmp    get_command
 
 try_app_start:
