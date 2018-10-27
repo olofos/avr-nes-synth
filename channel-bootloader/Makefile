@@ -38,10 +38,10 @@ clean:
 
 upload: $(TARGET).hex
 ifeq ($(PROGRAMMER),arduino)
-	$(AVRDUDE) -p$(PART) -P$(PORT) -c$(PROGRAMMER) -b$(BAUD) -U flash:w:$<
+	$(AVRDUDE) -p$(PART) -P$(PORT) -c$(PROGRAMMER) -b$(BAUD) -D -U flash:w:$<
 else
 #	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -U flash:w:$<
-	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -B1 -U flash:w:$<
+	$(AVRDUDE) -p$(PART) -c$(PROGRAMMER) -B1 -D -U flash:w:$<
 endif
 
 lss: $(TARGET).lss
