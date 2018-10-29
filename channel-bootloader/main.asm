@@ -17,22 +17,6 @@
 
         .section .text
 
-        .macro  wait_for_clock_hi
-1:      sbis    IO(PIN_DCLK_PIN), PIN_DCLK
-        rjmp    1b
-        .endm
-
-        .macro  wait_for_clock_lo
-1:      sbic    IO(PIN_DCLK_PIN), PIN_DCLK
-        rjmp    1b
-        .endm
-
-        .macro  wait_spm_busy
-1:      in      temp1, IO(SPMCSR)
-        sbrc    temp1, SELFPRGEN
-        rjmp    1b
-        .endm
-
         .global main
 main:
 ;;; Turn off watchdog
@@ -64,9 +48,9 @@ main:
         cbi     IO(PIN_FCLK_PORT), PIN_FCLK
 
 get_command:
-        wait_for_clock_lo
+        rcall   wait_for_clock_lo
         out     IO(PINS_BUS_DDR), zero
-        wait_for_clock_hi
+        rcall   wait_for_clock_hi
         in      temp1, IO(PINS_BUS_PIN)
         cpi     temp1, STK_PROG_PAGE
         breq    prog_page
@@ -77,11 +61,11 @@ get_command:
         rjmp    error_loop
 
 load_address:
-        wait_for_clock_lo
-        wait_for_clock_hi
+        rcall   wait_for_clock_lo
+        rcall   wait_for_clock_hi
         in      ZL, IO(PINS_BUS_PIN)
-        wait_for_clock_lo
-        wait_for_clock_hi
+        rcall   wait_for_clock_lo
+        rcall   wait_for_clock_hi
         in      ZH, IO(PINS_BUS_PIN)
         ;; Convert from word address to byte address
         add     ZL, ZL
@@ -93,23 +77,21 @@ read_page:
 read_page_loop:
 	lpm     temp1, Z+
 	com     temp1
-	wait_for_clock_lo
+	rcall   wait_for_clock_lo
 	out     IO(PINS_BUS_DDR), temp1
-	wait_for_clock_hi
+	rcall   wait_for_clock_hi
 	dec     count
 	brne    read_page_loop
 	rjmp    get_command
-
 
 prog_page:
         ldi     count, SPM_PAGESIZE
         ldi     YL, lo8(page_buffer)
         ldi     YH, hi8(page_buffer)
 
-
 fill_page_buffer_loop:
-	wait_for_clock_lo
-	wait_for_clock_hi
+	rcall   wait_for_clock_lo
+	rcall   wait_for_clock_hi
 	in      temp1, IO(PINS_BUS_PIN)
         st      Y+, temp1
         dec     count
@@ -119,7 +101,7 @@ fill_page_buffer_loop:
 	sbi     IO(PIN_FCLK_DDR), PIN_FCLK
 
 ;;; Erase page
-	wait_spm_busy
+	rcall   wait_spm_busy
         ldi     temp1, _BV(PGERS) | _BV(SELFPRGEN)
 	out     IO(SPMCSR), temp1
 	spm
@@ -132,7 +114,7 @@ fill_temp_buffer_loop:
         ld      r0, Y+
         ld      r1, Y+
 
-        wait_spm_busy
+        rcall   wait_spm_busy
         ldi     temp1, _BV(SELFPRGEN)
         out     IO(SPMCSR), temp1
         spm
@@ -144,22 +126,37 @@ fill_temp_buffer_loop:
 	subi    ZL, SPM_PAGESIZE
 
 ;;; Execute page write
-        wait_spm_busy
+        rcall   wait_spm_busy
         ldi     temp1, _BV(PGWRT) | _BV(SELFPRGEN)
         out     IO(SPMCSR), temp1
         spm
 
 ;;; Re-enable RWW section
-        wait_spm_busy
+        rcall   wait_spm_busy
         ldi     temp1,	_BV(RWWSRE) | _BV(SELFPRGEN)
         out     IO(SPMCSR), temp1
         spm
 
 ;;; Release flag
-        wait_spm_busy
+        rcall   wait_spm_busy
         cbi     IO(PIN_FCLK_DDR), PIN_FCLK
         rjmp    get_command
 
+wait_for_clock_hi:
+1:      sbis    IO(PIN_DCLK_PIN), PIN_DCLK
+	rjmp    1b
+	ret
+
+wait_for_clock_lo:
+1:      sbic    IO(PIN_DCLK_PIN), PIN_DCLK
+	rjmp    1b
+	ret
+
+wait_spm_busy:
+1:      in      temp1, IO(SPMCSR)
+	sbrc    temp1, SELFPRGEN
+	rjmp    1b
+	ret
 
 try_app_start:
         // Start app if temp1 = 0x00
