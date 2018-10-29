@@ -171,24 +171,15 @@ try_app_start:
 
 error_loop:
         sbi     IO(PIN_LED_DDR), PIN_LED
+        ;; Toggle LED
 1:      sbi     IO(PIN_LED_PIN), PIN_LED
-        rcall   delay270ms
-        cbi     IO(PIN_LED_PIN), PIN_LED
-        rcall   delay270ms
-        rjmp    1b
-
-
-delay270ms:
+        ;; Delay around 270ms
         ldi     temp1, 5
-1:      rcall   delay65535
-        dec     temp1
-        brne    1b
-        ret
-
-;;; About 54 ms at 14.318180 MHz
-delay65535:
-        ldi     ZL, 0xFF
-        ldi     ZH, 0xFF
-1:      sbiw    ZL, 1
-        brne    1b
-        ret
+        ;; Delay around 54 ms at 14.318180 MHz
+2:      ldi     ZL, 0xFF
+	ldi     ZH, 0xFF
+3:      sbiw    ZL, 1
+	brne    3b
+	dec     temp1
+	brne    2b
+        rjmp    1b
